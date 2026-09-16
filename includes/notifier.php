@@ -22,19 +22,43 @@ class Notifier {
         $settings = Storage::getSettings();
         $results = [];
 
+        $hasConfiguredChannel = false;
+
         // 1. Telegram
         if (!empty($settings['telegram_bot_token']) && !empty($settings['telegram_chat_id'])) {
+            $hasConfiguredChannel = true;
             $results['telegram'] = self::sendTelegram($settings['telegram_bot_token'], $settings['telegram_chat_id'], $subject, $message, $context);
+            if (!$results['telegram']['success']) {
+                Storage::logAppEvent('ERROR', 'NOTIFIER', 'Telegram alert failed: ' . ($results['telegram']['error'] ?? 'Unknown error'), ['subject' => $subject]);
+            } else {
+                Storage::logAppEvent('INFO', 'NOTIFIER', 'Telegram alert delivered', ['subject' => $subject]);
+            }
         }
 
         // 2. OpenWA (WhatsApp)
         if (!empty($settings['openwa_api_url']) && !empty($settings['openwa_chat_id'])) {
+            $hasConfiguredChannel = true;
             $results['openwa'] = self::sendOpenWA($settings['openwa_api_url'], $settings['openwa_api_key'] ?? '', $settings['openwa_chat_id'], $subject, $message, $context);
+            if (!$results['openwa']['success']) {
+                Storage::logAppEvent('ERROR', 'NOTIFIER', 'OpenWA alert failed: ' . ($results['openwa']['error'] ?? 'Unknown error'), ['subject' => $subject]);
+            } else {
+                Storage::logAppEvent('INFO', 'NOTIFIER', 'OpenWA alert delivered', ['subject' => $subject]);
+            }
         }
 
         // 3. Gmail SMTP
         if (!empty($settings['gmail_smtp_user']) && !empty($settings['gmail_smtp_pass']) && !empty($settings['alert_email_to'])) {
+            $hasConfiguredChannel = true;
             $results['email'] = self::sendGmailSmtp($settings, $subject, $message, $context);
+            if (!$results['email']['success']) {
+                Storage::logAppEvent('ERROR', 'NOTIFIER', 'Email alert failed: ' . ($results['email']['error'] ?? 'Unknown error'), ['subject' => $subject]);
+            } else {
+                Storage::logAppEvent('INFO', 'NOTIFIER', 'Email alert delivered', ['subject' => $subject]);
+            }
+        }
+
+        if (!$hasConfiguredChannel) {
+            Storage::logAppEvent('WARNING', 'NOTIFIER', 'Change detected but no notification channel is configured (Telegram, OpenWA, or Gmail SMTP are empty in Settings).', ['subject' => $subject]);
         }
 
         return $results;
@@ -75,6 +99,36 @@ class Notifier {
 
         $data = json_decode((string)$resp, true);
         $success = ($code === 200 && !empty($data['ok']));
+
+        // If markdown parsing failed (Telegram 400 Bad Request: can't parse entities), retry as plain text / HTML
+        if (!$success && $code === 400) {
+            $plainText = "🔔 [{$subject}]\n\n" . strip_tags($message);
+            if (!empty($context['url'])) {
+                $plainText .= "\nTarget: " . $context['url'];
+            }
+            if (!empty($context['diff'])) {
+                $plainText .= "\n\nDiff:\n" . substr($context['diff'], 0, 800);
+            }
+
+            $ch2 = curl_init($url);
+            curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch2, CURLOPT_POST, true);
+            curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode([
+                'chat_id' => $chatId,
+                'text' => $plainText,
+                'disable_web_page_preview' => true,
+            ]));
+            curl_setopt($ch2, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+            curl_setopt($ch2, CURLOPT_TIMEOUT, 15);
+            $resp2 = curl_exec($ch2);
+            $code2 = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+            curl_close($ch2);
+
+            $data2 = json_decode((string)$resp2, true);
+            if ($code2 === 200 && !empty($data2['ok'])) {
+                $success = true;
+            }
+        }
 
         return [
             'success' => $success,
