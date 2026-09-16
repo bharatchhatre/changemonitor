@@ -17,10 +17,10 @@ $route = $_GET['route'] ?? 'dashboard';
 
 // Handle Login POST
 $loginError = '';
-if ($route === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) || ($route === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST')) {
     $password = $_POST['password'] ?? '';
     if (Auth::login($password)) {
-        header('Location: index.php');
+        header('Location: ./');
         exit;
     } else {
         $loginError = 'Invalid admin password or account temporarily locked.';
@@ -30,7 +30,7 @@ if ($route === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 // Handle Logout
 if ($route === 'logout') {
     Auth::logout();
-    header('Location: index.php?route=login');
+    header('Location: ./?route=login');
     exit;
 }
 
@@ -78,11 +78,11 @@ if (!Auth::check()) {
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="index.php?route=login">
+                <form method="POST" action="">
                     <div class="form-group">
                         <label class="form-label" for="password">Admin Password</label>
                         <input type="password" id="password" name="password" class="form-control" placeholder="Enter password..." required autofocus>
-                        <p class="form-help">Default is configured in your <code>.env</code> file.</p>
+                        <p class="form-help">Default password is <code>admin</code> (or set in <code>.env</code>).</p>
                     </div>
                     <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Unlock Dashboard</button>
                 </form>
@@ -131,7 +131,7 @@ foreach ($monitors as $m) {
             <div class="nav-actions">
                 <button class="btn btn-secondary btn-sm" id="runAllBtn">▶ Run All Checks</button>
                 <button class="btn btn-primary btn-sm" id="addMonitorBtn">+ Add Target</button>
-                <a href="index.php?route=logout" class="btn btn-secondary btn-sm" title="Logout">Logout</a>
+                <a href="?route=logout" class="btn btn-secondary btn-sm" title="Logout">Logout</a>
             </div>
         </header>
 

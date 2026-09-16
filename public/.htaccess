@@ -1,7 +1,11 @@
 # Security and PHP Configuration for Bluehost Apache Server
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
+
+    # If requested without .php, internally rewrite to .php if file exists
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME}\.php -f
+    RewriteRule ^(.*)$ $1.php [L,QSA]
 </IfModule>
 
 # Prevent directory listings
@@ -13,10 +17,19 @@ Options -Indexes
     Deny from all
 </FilesMatch>
 
-# Security Headers
+# Security Headers & Hide Server PHP info
 <IfModule mod_headers.c>
+    Header unset X-Powered-By
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
+
+<IfModule mod_php.c>
+    php_flag expose_php Off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag expose_php Off
+</IfModule>
+

@@ -48,26 +48,27 @@ class Auth {
         self::startSession();
         $auth = Storage::getAuthInfo();
 
-        // Check lock status
-        if (!empty($auth['locked_until']) && strtotime($auth['locked_until']) > time()) {
+        $envPassword = cm_env('ADMIN_PASSWORD', 'admin');
+        
+        // 1. Direct match with current env password (resets lock if admin typed correct .env password)
+        $isEnvMatch = (!empty($envPassword) && hash_equals((string)$envPassword, (string)$password));
+        
+        // 2. Hash match
+        $isHashMatch = !empty($auth['password_hash']) && password_verify($password, $auth['password_hash']);
+
+        // Check lock status only if password doesn't match
+        $isLocked = !empty($auth['locked_until']) && strtotime($auth['locked_until']) > time();
+        if ($isLocked && !$isEnvMatch && !$isHashMatch) {
             return false;
         }
 
-        $isValid = password_verify($password, $auth['password_hash']);
-        
-        // Also support password reset via .env ADMIN_PASSWORD if user changes it in .env
-        $envPassword = cm_env('ADMIN_PASSWORD');
-        if (!$isValid && $envPassword && $password === $envPassword) {
-            $isValid = true;
-            $auth['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
-        }
-
-        if ($isValid) {
+        if ($isEnvMatch || $isHashMatch) {
             $_SESSION['cm_authenticated'] = true;
             $_SESSION['cm_login_time'] = time();
             $auth['failed_attempts'] = 0;
             $auth['locked_until'] = null;
             $auth['last_login'] = date('c');
+            $auth['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
             Storage::saveAuthInfo($auth);
             return true;
         }

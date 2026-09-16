@@ -1,0 +1,36 @@
+# Rewrite requests from /changedetector/ to /changedetector/public/
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /changedetector/
+
+    # Security: Hide server PHP signature
+    <IfModule mod_headers.c>
+        Header unset X-Powered-By
+        Header set X-Content-Type-Options "nosniff"
+        Header set X-Frame-Options "SAMEORIGIN"
+        Header set X-XSS-Protection "1; mode=block"
+    </IfModule>
+
+    # Disable PHP powered-by signature
+    <IfModule mod_php.c>
+        php_flag expose_php Off
+    </IfModule>
+    <IfModule mod_php8.c>
+        php_flag expose_php Off
+    </IfModule>
+
+    # Protect internal files and folders from direct web access
+    RewriteRule ^(\.env|\.git|\.agents|data|includes|tests|vendor) - [F,L,NC]
+
+    # If request is not already in public/, rewrite to public/
+    RewriteCond %{REQUEST_URI} !^/changedetector/public/
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
+</IfModule>
+
+# Protect hidden dot files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+Options -Indexes

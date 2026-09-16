@@ -14,3 +14,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Single-page responsive dark admin dashboard with analytics cards, live selector preview modal, history/snapshot viewer, and settings management.
 - Standalone CLI / cPanel / Webhook cron runner `cron.php` with secret token authentication.
 - Single-file full backup export and one-click restore (monitors, settings, notification tokens, stats, and text snapshot logs).
+- Root `.htaccess` to transparently serve `/public/` from root directory `/changedetector/`.
+- Extensionless `.php` routing and server `X-Powered-By` header removal.
+- Robust fallback authentication and lockout reset mechanism.
