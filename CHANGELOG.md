@@ -30,4 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added server CA bundle discovery and automatic SSL fallback retry for legacy government endpoints with missing local issuer certs.
 - Added self-healing anti-bot retry with automatic cookie-jar reset and clean header fallback for Azure FrontDoor WAF 403/400 blocks.
 - Added UTF-8 character sanitization with `JSON_INVALID_UTF8_SUBSTITUTE` for live extraction previews.
+- Added automatic origin-derived Referer injection and Indian IP forwarding headers (`X-Forwarded-For`, `X-Real-IP`, `Client-IP`) to bypass Azure FrontDoor WAF 403 blocks on foreign datacenter IPs.
+- Implemented multi-tier self-healing fallback with clean HTTP/1.1 API mode for SPA endpoints.
+
 

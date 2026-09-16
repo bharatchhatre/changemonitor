@@ -72,24 +72,19 @@ class Fetcher {
                 ],
             ],
             'gov_portal' => [
-                'name' => 'Government / Azure FrontDoor Portal (Anti-Bot Bypass)',
+                'name' => 'Government / Azure FrontDoor Portal (Anti-Bot & Geo Bypass)',
                 'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
                 'headers' => [
-                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,application/json,text/plain,*/*;q=0.8',
-                    'Accept-Language' => 'en-US,en;q=0.9,hi;q=0.8',
-                    'Sec-Ch-Ua' => '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
-                    'Sec-Ch-Ua-Mobile' => '?0',
-                    'Sec-Ch-Ua-Platform' => '"Windows"',
-                    'Sec-Fetch-Dest' => 'document',
-                    'Sec-Fetch-Mode' => 'navigate',
-                    'Sec-Fetch-Site' => 'none',
-                    'Sec-Fetch-User' => '?1',
-                    'Upgrade-Insecure-Requests' => '1',
+                    'Accept' => 'application/json, text/html, application/xhtml+xml, */*;q=0.8',
+                    'Accept-Language' => 'en-US,en;q=0.9,hi;q=0.8,mr;q=0.7',
+                    'X-Forwarded-For' => '103.21.124.1, 103.21.124.10',
+                    'X-Real-IP' => '103.21.124.1',
+                    'Client-IP' => '103.21.124.1',
                 ],
             ],
             'json_api' => [
                 'name' => 'REST API Client (JSON / Microservice)',
-                'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
                 'headers' => [
                     'Accept' => 'application/json, text/plain, */*',
                     'Accept-Language' => 'en-US,en;q=0.9',
@@ -167,9 +162,31 @@ class Fetcher {
         $allTemplates = self::getAllTemplates();
         $template = $allTemplates[$templateKey] ?? $allTemplates['chrome_mac'] ?? [];
 
+        $parsedUrl = parse_url($url);
+        $scheme = $parsedUrl['scheme'] ?? 'https';
+        $host = $parsedUrl['host'] ?? '';
+        $origin = "$scheme://$host";
+
         // Build Headers List
-        $headersList = [];
         $mergedHeaders = $template['headers'] ?? [];
+
+        // Automatic Referer derivation if not present
+        if (!isset($mergedHeaders['Referer']) && !isset($mergedHeaders['referer']) && !empty($host)) {
+            $mergedHeaders['Referer'] = "$origin/";
+        }
+
+        // Check if Indian Gov or Azure FrontDoor portal - inject Geo-bypass headers automatically
+        if (str_ends_with($host, '.gov.in') || str_ends_with($host, '.nic.in') || str_contains($host, 'mhada') || str_contains($host, 'cidco')) {
+            if (!isset($mergedHeaders['X-Forwarded-For'])) {
+                $mergedHeaders['X-Forwarded-For'] = '103.21.124.1, 103.21.124.10';
+            }
+            if (!isset($mergedHeaders['X-Real-IP'])) {
+                $mergedHeaders['X-Real-IP'] = '103.21.124.1';
+            }
+            if (!isset($mergedHeaders['Client-IP'])) {
+                $mergedHeaders['Client-IP'] = '103.21.124.1';
+            }
+        }
 
         // Parse custom headers
         if (!empty($options['custom_headers'])) {
@@ -189,11 +206,12 @@ class Fetcher {
         }
 
         // Format for cURL
+        $headersList = [];
         foreach ($mergedHeaders as $k => $v) {
             $headersList[] = "$k: $v";
         }
 
-        $userAgent = !empty($options['user_agent']) ? $options['user_agent'] : ($template['user_agent'] ?? 'ChangeMonitor/1.0');
+        $userAgent = !empty($options['user_agent']) ? $options['user_agent'] : ($template['user_agent'] ?? 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36');
 
         $ch = curl_init();
 
@@ -254,7 +272,7 @@ class Fetcher {
         if (!is_dir($cookieLogDir)) {
             @mkdir($cookieLogDir, 0755, true);
         }
-        $cookieJarFile = $cookieLogDir . '/cookies_' . md5(parse_url($url, PHP_URL_HOST) ?? 'host') . '.txt';
+        $cookieJarFile = $cookieLogDir . '/cookies_' . md5($host ?: 'host') . '.txt';
         curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarFile);
         curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarFile);
 
@@ -283,33 +301,51 @@ class Fetcher {
 
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-        // Intelligent Anti-Bot WAF Fallback: If target returns 403 Forbidden or 400 Bad Request (common in Azure FrontDoor / Cloudflare blocks),
-        // reset session cookies, apply clean modern Chrome headers, and retry immediately.
+        // Intelligent Anti-Bot & Azure FrontDoor WAF Self-Healing Fallback
+        // If target returns 403 Forbidden or 400 Bad Request, execute multi-tier self-healing
         if ($httpCode === 403 || $httpCode === 400) {
             if (file_exists($cookieJarFile)) {
                 @unlink($cookieJarFile);
             }
-            // Retry with clean minimal browser headers
-            $fallbackHeaders = [
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,application/json,text/plain,*/*;q=0.8',
-                'Accept-Language: en-US,en;q=0.9',
-                'Sec-Ch-Ua: "Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
-                'Sec-Ch-Ua-Mobile: ?0',
-                'Sec-Ch-Ua-Platform: "Windows"',
-                'Sec-Fetch-Dest: document',
-                'Sec-Fetch-Mode: navigate',
-                'Sec-Fetch-Site: none',
-                'Sec-Fetch-User: ?1',
-                'Upgrade-Insecure-Requests: 1',
+
+            // Retry Tier 1: Clean REST API / SPA mode with HTTP/1.1, host Referer, and Indian IP Forwarding
+            $apiFallbackHeaders = [
+                'Accept: application/json, text/plain, */*',
+                'Accept-Language: en-US,en;q=0.9,hi;q=0.8',
+                "Referer: $origin/",
+                'X-Forwarded-For: 103.21.124.1, 103.21.124.10',
+                'X-Real-IP: 103.21.124.1',
+                'Client-IP: 103.21.124.1',
+                'Connection: close',
             ];
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $fallbackHeaders);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $apiFallbackHeaders);
+            curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
             curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36');
             curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarFile);
             curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarFile);
-            usleep(250000); // 250ms backoff
+            usleep(150000); // 150ms backoff
             $rawResponse = curl_exec($ch);
             $curlError = curl_error($ch);
             $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+            // Retry Tier 2: Clean Browser Document Navigation mode if Tier 1 was not 200-399
+            if ($httpCode === 403 || $httpCode === 400) {
+                $docFallbackHeaders = [
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language: en-US,en;q=0.9',
+                    "Referer: $origin/",
+                    'X-Forwarded-For: 103.21.124.1, 103.21.124.10',
+                    'X-Real-IP: 103.21.124.1',
+                    'Client-IP: 103.21.124.1',
+                    'Upgrade-Insecure-Requests: 1',
+                    'Connection: close',
+                ];
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $docFallbackHeaders);
+                curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE);
+                $rawResponse = curl_exec($ch);
+                $curlError = curl_error($ch);
+                $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            }
         }
 
         $durationMs = round((microtime(true) - $startTime) * 1000, 2);
