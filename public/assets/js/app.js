@@ -359,14 +359,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Action: View History & Snapshot ---
+    let currentHistoryMonitorId = null;
     window.viewHistory = async function(id) {
+        currentHistoryMonitorId = id;
         openModal('historyModal');
         const historyLogs = document.getElementById('historyLogs');
         const historySnapshot = document.getElementById('historySnapshot');
         const historyTitle = document.getElementById('historyModalTitle');
+        const snapshotSelect = document.getElementById('snapshotSelect');
+        const historyLogMeta = document.getElementById('historyLogMeta');
 
         historyLogs.textContent = 'Loading history...';
         historySnapshot.textContent = 'Loading snapshot...';
+        if (snapshotSelect) snapshotSelect.innerHTML = '<option value="">Latest Captured Snapshot</option>';
 
         try {
             const res = await fetch(`api.php?action=get_history&id=${encodeURIComponent(id)}`);
@@ -374,7 +379,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 historyTitle.textContent = `History: ${data.monitor?.name || id}`;
                 historyLogs.textContent = data.history_log || 'No history recorded yet.';
-                historySnapshot.textContent = data.latest_snapshot || 'No snapshot captured yet.';
+                historySnapshot.textContent = data.current_snapshot || data.latest_snapshot || 'No snapshot captured yet.';
+                
+                if (historyLogMeta) {
+                    historyLogMeta.textContent = `Total Checks: ${data.monitor?.check_count || 0} | Changes: ${data.monitor?.change_count || 0}`;
+                }
+
+                // Populate Snapshots Dropdown
+                if (snapshotSelect && data.snapshots_list && data.snapshots_list.length > 0) {
+                    let opts = '<option value="">Latest Snapshot (Active)</option>';
+                    data.snapshots_list.forEach((snap, idx) => {
+                        opts += `<option value="${escapeHtml(snap.file)}">${escapeHtml(snap.time)} (${snap.size} bytes)${idx === 0 ? ' [Newest]' : ''}</option>`;
+                    });
+                    snapshotSelect.innerHTML = opts;
+                }
             } else {
                 historyLogs.textContent = 'Failed to load history: ' + data.error;
             }
@@ -382,6 +400,29 @@ document.addEventListener('DOMContentLoaded', () => {
             historyLogs.textContent = 'Network error loading history: ' + e.message;
         }
     };
+
+    // Snapshot Dropdown Change Handler
+    const snapshotSelect = document.getElementById('snapshotSelect');
+    if (snapshotSelect) {
+        snapshotSelect.addEventListener('change', async (e) => {
+            if (!currentHistoryMonitorId) return;
+            const historySnapshot = document.getElementById('historySnapshot');
+            const selectedFile = e.target.value;
+            historySnapshot.textContent = 'Loading selected snapshot version...';
+
+            try {
+                const res = await fetch(`api.php?action=get_history&id=${encodeURIComponent(currentHistoryMonitorId)}&snapshot_file=${encodeURIComponent(selectedFile)}`);
+                const data = await res.json();
+                if (data.success) {
+                    historySnapshot.textContent = data.current_snapshot || data.latest_snapshot || '(Empty content)';
+                } else {
+                    historySnapshot.textContent = 'Failed to load snapshot version: ' + data.error;
+                }
+            } catch (err) {
+                historySnapshot.textContent = 'Network error loading snapshot version: ' + err.message;
+            }
+        });
+    }
 
     // --- Settings Form ---
     const settingsForm = document.getElementById('settingsForm');

@@ -711,10 +711,21 @@ foreach ($monitors as $m) {
                 <button type="button" class="modal-close" onclick="closeModal('historyModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--info);">Execution & Change Log (Text File)</h4>
-                <div class="diff-container" id="historyLogs" style="margin-bottom: 1.5rem; max-height: 250px;"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <h4 style="font-size: 0.9rem; color: var(--info); margin: 0;">📜 Execution & Change Log (Text File)</h4>
+                    <span id="historyLogMeta" style="font-size: 0.75rem; color: var(--text-muted);"></span>
+                </div>
+                <div class="diff-container" id="historyLogs" style="margin-bottom: 1.5rem; max-height: 230px;"></div>
 
-                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--success);">Latest Captured Snapshot</h4>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <h4 style="font-size: 0.9rem; color: var(--success); margin: 0;">📸 Captured Snapshots History</h4>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label for="snapshotSelect" style="font-size: 0.8rem; color: var(--text-muted);">Select Version:</label>
+                        <select id="snapshotSelect" class="form-control" style="min-height: 32px; padding: 0.25rem 0.5rem; font-size: 0.8rem; width: auto;">
+                            <option value="">Latest Captured Snapshot</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="diff-container" id="historySnapshot" style="max-height: 250px;"></div>
             </div>
             <div class="modal-footer">

@@ -172,15 +172,23 @@ try {
             if (empty($id)) {
                 throw new \InvalidArgumentException('Monitor ID is required');
             }
+            $snapshotFile = $_GET['snapshot_file'] ?? $input['snapshot_file'] ?? '';
             $history = Storage::getHistoryLog($id);
-            $latestSnapshot = Storage::getLatestSnapshot($id);
+            $snapshots = Storage::getSnapshotList($id);
+            
+            $snapshotContent = !empty($snapshotFile) 
+                ? Storage::getSnapshotContent($id, $snapshotFile)
+                : Storage::getLatestSnapshot($id);
+
             $monitor = Storage::getMonitor($id);
 
             echo json_encode([
                 'success' => true,
                 'monitor' => $monitor,
                 'history_log' => $history,
-                'latest_snapshot' => $latestSnapshot,
+                'snapshots_list' => $snapshots,
+                'current_snapshot' => $snapshotContent,
+                'latest_snapshot' => $snapshotContent,
             ]);
             break;
 

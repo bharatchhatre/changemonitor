@@ -312,6 +312,54 @@ class Storage {
         return file_exists($file) ? (file_get_contents($file) ?: '') : '';
     }
 
+    /**
+     * Get list of all timestamped snapshot files for a monitor
+     */
+    public static function getSnapshotList(string $monitorId): array {
+        $dir = CM_HISTORY_DIR . '/' . $monitorId;
+        if (!is_dir($dir)) {
+            return [];
+        }
+
+        $files = glob($dir . '/snap_*.txt');
+        if (!$files) {
+            return [];
+        }
+
+        rsort($files); // Newest first
+        $list = [];
+        foreach ($files as $filePath) {
+            $baseName = basename($filePath);
+            // snap_20260917_002530.txt -> formatted date
+            if (preg_match('/^snap_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.txt$/', $baseName, $m)) {
+                $formattedTime = "{$m[1]}-{$m[2]}-{$m[3]} {$m[4]}:{$m[5]}:{$m[6]}";
+            } else {
+                $formattedTime = date('Y-m-d H:i:s', filemtime($filePath));
+            }
+
+            $list[] = [
+                'file' => $baseName,
+                'time' => $formattedTime,
+                'size' => filesize($filePath),
+            ];
+        }
+
+        return $list;
+    }
+
+    /**
+     * Get specific snapshot file content
+     */
+    public static function getSnapshotContent(string $monitorId, string $filename): string {
+        // Sanitize filename to prevent path traversal
+        $cleanFilename = basename($filename);
+        $file = CM_HISTORY_DIR . '/' . $monitorId . '/' . $cleanFilename;
+        if (file_exists($file) && is_file($file)) {
+            return file_get_contents($file) ?: '';
+        }
+        return self::getLatestSnapshot($monitorId);
+    }
+
     // --- Analytics & Stats ---
 
     public static function recordCheckStats(string $monitorId, bool $isSuccess, bool $isChange, float $durationMs, ?int $httpCode = null): void {
