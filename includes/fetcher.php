@@ -281,8 +281,38 @@ class Fetcher {
             $curlError = curl_error($ch);
         }
 
-        $durationMs = round((microtime(true) - $startTime) * 1000, 2);
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        // Intelligent Anti-Bot WAF Fallback: If target returns 403 Forbidden or 400 Bad Request (common in Azure FrontDoor / Cloudflare blocks),
+        // reset session cookies, apply clean modern Chrome headers, and retry immediately.
+        if ($httpCode === 403 || $httpCode === 400) {
+            if (file_exists($cookieJarFile)) {
+                @unlink($cookieJarFile);
+            }
+            // Retry with clean minimal browser headers
+            $fallbackHeaders = [
+                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,application/json,text/plain,*/*;q=0.8',
+                'Accept-Language: en-US,en;q=0.9',
+                'Sec-Ch-Ua: "Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
+                'Sec-Ch-Ua-Mobile: ?0',
+                'Sec-Ch-Ua-Platform: "Windows"',
+                'Sec-Fetch-Dest: document',
+                'Sec-Fetch-Mode: navigate',
+                'Sec-Fetch-Site: none',
+                'Sec-Fetch-User: ?1',
+                'Upgrade-Insecure-Requests: 1',
+            ];
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $fallbackHeaders);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36');
+            curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarFile);
+            curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarFile);
+            usleep(250000); // 250ms backoff
+            $rawResponse = curl_exec($ch);
+            $curlError = curl_error($ch);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        }
+
+        $durationMs = round((microtime(true) - $startTime) * 1000, 2);
         $contentType = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         $effectiveUrl = (string)curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
