@@ -10,6 +10,7 @@ require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/storage.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/fetcher.php';
+require_once __DIR__ . '/../includes/engine.php';
 
 Auth::startSession();
 
@@ -205,6 +206,7 @@ $inactiveCount = count($inactiveMonitors);
                                     <th>Type & Selector</th>
                                     <th>Profile</th>
                                     <th>Last Check</th>
+                                    <th>Next Check</th>
                                     <th>Changes</th>
                                     <th style="text-align: right;">Actions</th>
                                 </tr>
@@ -212,12 +214,18 @@ $inactiveCount = count($inactiveMonitors);
                             <tbody>
                                 <?php if (empty($activeMonitors)): ?>
                                     <tr>
-                                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+                                        <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
                                             No active targets. Click <strong>"+ Add Target"</strong> above or resume a paused monitor from the Inactive sub-tab.
                                         </td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($activeMonitors as $id => $m): ?>
+                                        <?php
+                                        $intervalMins = Engine::getActiveIntervalMins($m);
+                                        $lastCheckTs = !empty($m['last_check_at']) ? strtotime($m['last_check_at']) : 0;
+                                        $nextCheckTs = $lastCheckTs > 0 ? ($lastCheckTs + ($intervalMins * 60)) : time();
+                                        $isOverdue = time() >= $nextCheckTs;
+                                        ?>
                                         <tr>
                                             <td>
                                                 <?php if (!empty($m['last_error'])): ?>
@@ -256,6 +264,14 @@ $inactiveCount = count($inactiveMonitors);
                                                 <?php endif; ?>
                                             </td>
                                             <td>
+                                                <div class="next-check-timer" data-next-timestamp="<?= $nextCheckTs ?>" data-status="active" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--info); font-weight: 600;">
+                                                    <?= $isOverdue ? '⚡ Due Now' : '⏳ in ' . round(($nextCheckTs - time()) / 60) . 'm' ?>
+                                                </div>
+                                                <div style="font-size: 0.725rem; color: var(--text-muted);">
+                                                    Every <?= $intervalMins ?>m<?= !empty($m['peak_schedule_enabled']) ? ' (dynamic)' : '' ?>
+                                                </div>
+                                            </td>
+                                            <td>
                                                 <strong><?= (int)($m['change_count'] ?? 0) ?></strong>
                                                 <?php if (!empty($m['last_change_at'])): ?>
                                                     <div style="font-size: 0.75rem; color: var(--warning);">
@@ -289,6 +305,7 @@ $inactiveCount = count($inactiveMonitors);
                                     <th>Type & Selector</th>
                                     <th>Profile</th>
                                     <th>Last Check</th>
+                                    <th>Next Check</th>
                                     <th>Changes</th>
                                     <th style="text-align: right;">Actions</th>
                                 </tr>
@@ -296,7 +313,7 @@ $inactiveCount = count($inactiveMonitors);
                             <tbody>
                                 <?php if (empty($inactiveMonitors)): ?>
                                     <tr>
-                                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+                                        <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
                                             No inactive or paused monitors.
                                         </td>
                                     </tr>
@@ -334,6 +351,14 @@ $inactiveCount = count($inactiveMonitors);
                                                 <?php else: ?>
                                                     <span style="color: var(--text-muted);">Never</span>
                                                 <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <div style="font-size: 0.85rem; color: var(--text-muted);">
+                                                    Paused
+                                                </div>
+                                                <div style="font-size: 0.725rem; color: var(--text-muted);">
+                                                    Interval: <?= (int)($m['interval_mins'] ?? 15) ?>m
+                                                </div>
                                             </td>
                                             <td>
                                                 <strong><?= (int)($m['change_count'] ?? 0) ?></strong>

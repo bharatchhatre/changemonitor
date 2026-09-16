@@ -36,6 +36,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Live Next Check Countdown Timer Ticker ---
+    function updateNextCheckTimers() {
+        const now = Math.floor(Date.now() / 1000);
+        document.querySelectorAll('.next-check-timer').forEach(el => {
+            const nextTs = parseInt(el.getAttribute('data-next-timestamp'), 10);
+            if (!nextTs || isNaN(nextTs)) return;
+
+            const diff = nextTs - now;
+            if (diff <= 0) {
+                el.innerHTML = '<span style="color: var(--success);">⚡ Due Now</span>';
+            } else {
+                const hours = Math.floor(diff / 3600);
+                const mins = Math.floor((diff % 3600) / 60);
+                const secs = diff % 60;
+
+                let formatted = '⏳ in ';
+                if (hours > 0) {
+                    formatted += `${hours}h ${mins}m`;
+                } else if (mins > 0) {
+                    formatted += `${mins}m ${secs.toString().padStart(2, '0')}s`;
+                } else {
+                    formatted += `${secs}s`;
+                }
+                el.innerHTML = formatted;
+            }
+        });
+    }
+    updateNextCheckTimers();
+    setInterval(updateNextCheckTimers, 1000);
+
     // --- Toast Notifications ---
     window.showToast = function(message, type = 'info') {
         let container = document.querySelector('.toast-container');
