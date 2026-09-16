@@ -27,4 +27,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Adjusted `gov_portal` browser profile headers and disabled `CURLOPT_AUTOREFERER` to eliminate Azure FrontDoor WAF 403 Forbidden / 400 Bad Request responses.
 - Added `🎯 Active` and `⏸️ Inactive` sub-tabs inside the main Monitors tab with real-time target counts.
 - Added live, second-by-second **Next Check** countdown timer column on active and inactive target tables.
+- Added server CA bundle discovery and automatic SSL fallback retry for legacy government endpoints with missing local issuer certs.
 

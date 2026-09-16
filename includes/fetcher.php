@@ -213,10 +213,29 @@ class Fetcher {
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, $followRedirects);
         curl_setopt($ch, CURLOPT_MAXREDIRS, 5);
 
-        // SSL verification
-        $verifySsl = $options['verify_ssl'] ?? true;
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, $verifySsl);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, $verifySsl ? 2 : 0);
+        // SSL verification (graceful fallback for missing local root CA bundles on shared hosting)
+        $verifySsl = array_key_exists('verify_ssl', $options) ? (bool)$options['verify_ssl'] : true;
+        if ($verifySsl) {
+            // Check common server CA bundle paths
+            $caBundlePaths = [
+                '/etc/pki/tls/certs/ca-bundle.crt',
+                '/etc/ssl/certs/ca-certificates.crt',
+                '/usr/local/share/certs/ca-root-nss.crt',
+                '/etc/ssl/cert.pem',
+                '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem',
+            ];
+            foreach ($caBundlePaths as $caPath) {
+                if (file_exists($caPath) && is_readable($caPath)) {
+                    curl_setopt($ch, CURLOPT_CAINFO, $caPath);
+                    break;
+                }
+            }
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        } else {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
 
         // Method & Post Data
         if ($method === 'POST') {
@@ -251,9 +270,18 @@ class Fetcher {
 
         $startTime = microtime(true);
         $rawResponse = curl_exec($ch);
-        $durationMs = round((microtime(true) - $startTime) * 1000, 2);
-
         $curlError = curl_error($ch);
+        $curlErrno = curl_errno($ch);
+
+        // If SSL certificate verification failed due to missing local issuer / root CA bundle on shared host, retry once safely
+        if ($rawResponse === false && in_array($curlErrno, [60, 77, 35, 51], true)) {
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            $rawResponse = curl_exec($ch);
+            $curlError = curl_error($ch);
+        }
+
+        $durationMs = round((microtime(true) - $startTime) * 1000, 2);
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $contentType = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         $effectiveUrl = (string)curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
