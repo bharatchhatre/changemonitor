@@ -1,0 +1,429 @@
+/**
+ * Frontend JavaScript Controller for Change Monitor Admin
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    // --- Tab Navigation ---
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-tab');
+            tabButtons.forEach(b => b.classList.remove('active'));
+            tabPanes.forEach(p => p.style.display = 'none');
+
+            btn.classList.add('active');
+            const targetPane = document.getElementById(targetId);
+            if (targetPane) targetPane.style.display = 'block';
+        });
+    });
+
+    // --- Toast Notifications ---
+    window.showToast = function(message, type = 'info') {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(50px)';
+            toast.style.transition = 'all 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    };
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // --- Modals ---
+    window.openModal = function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+    };
+
+    window.closeModal = function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+    };
+
+    document.querySelectorAll('.modal-backdrop').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('open');
+                document.body.style.overflow = '';
+            }
+        });
+    });
+
+    // --- Add/Edit Monitor Modal ---
+    const monitorForm = document.getElementById('monitorForm');
+    const addMonitorBtn = document.getElementById('addMonitorBtn');
+
+    if (addMonitorBtn) {
+        addMonitorBtn.addEventListener('click', () => {
+            if (monitorForm) monitorForm.reset();
+            document.getElementById('monitorModalTitle').textContent = 'Add New Target Monitor';
+            document.getElementById('monitorId').value = '';
+            document.getElementById('previewOutput').style.display = 'none';
+            openModal('monitorModal');
+        });
+    }
+
+    window.editMonitor = function(data) {
+        if (monitorForm) {
+            monitorForm.reset();
+            document.getElementById('monitorModalTitle').textContent = 'Edit Monitor';
+            document.getElementById('monitorId').value = data.id || '';
+            document.getElementById('monitorName').value = data.name || '';
+            document.getElementById('monitorUrl').value = data.url || '';
+            document.getElementById('monitorType').value = data.type || 'html_full';
+            document.getElementById('monitorSelector').value = data.selector || '';
+            document.getElementById('monitorTemplate').value = data.browser_template || 'chrome_mac';
+            document.getElementById('monitorInterval').value = data.interval_mins || 15;
+            document.getElementById('monitorHeaders').value = data.custom_headers || '';
+            document.getElementById('monitorCookies').value = data.cookies || '';
+            document.getElementById('monitorStripTags').checked = !!data.strip_tags;
+            document.getElementById('monitorSimulateDelay').checked = !!data.simulate_delay;
+            document.getElementById('monitorNotifyChange').checked = (data.notify_on_change !== false);
+            document.getElementById('monitorNotifyError').checked = (data.notify_on_error !== false);
+            document.getElementById('previewOutput').style.display = 'none';
+            openModal('monitorModal');
+        }
+    };
+
+    // --- Save Monitor Form ---
+    if (monitorForm) {
+        monitorForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = monitorForm.querySelector('button[type="submit"]');
+            const origText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Saving...';
+
+            const payload = {
+                id: document.getElementById('monitorId').value,
+                name: document.getElementById('monitorName').value,
+                url: document.getElementById('monitorUrl').value,
+                type: document.getElementById('monitorType').value,
+                selector: document.getElementById('monitorSelector').value,
+                browser_template: document.getElementById('monitorTemplate').value,
+                interval_mins: parseInt(document.getElementById('monitorInterval').value, 10),
+                custom_headers: document.getElementById('monitorHeaders').value,
+                cookies: document.getElementById('monitorCookies').value,
+                strip_tags: document.getElementById('monitorStripTags').checked,
+                simulate_delay: document.getElementById('monitorSimulateDelay').checked,
+                notify_on_change: document.getElementById('monitorNotifyChange').checked,
+                notify_on_error: document.getElementById('monitorNotifyError').checked,
+                csrf_token: csrfToken,
+            };
+
+            try {
+                const res = await fetch('api.php?action=save_monitor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Monitor saved successfully!', 'success');
+                    closeModal('monitorModal');
+                    setTimeout(() => location.reload(), 600);
+                } else {
+                    showToast(data.error || 'Failed to save monitor', 'error');
+                }
+            } catch (err) {
+                showToast('Network error while saving', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = origText;
+            }
+        });
+    }
+
+    // --- Test & Live Preview Selector ---
+    const testPreviewBtn = document.getElementById('testPreviewBtn');
+    if (testPreviewBtn) {
+        testPreviewBtn.addEventListener('click', async () => {
+            const url = document.getElementById('monitorUrl').value;
+            if (!url) {
+                showToast('Please enter a target URL first', 'error');
+                return;
+            }
+
+            const previewOutput = document.getElementById('previewOutput');
+            const previewContent = document.getElementById('previewContent');
+            const previewMeta = document.getElementById('previewMeta');
+
+            testPreviewBtn.disabled = true;
+            testPreviewBtn.innerHTML = 'Fetching & Extracting...';
+            previewOutput.style.display = 'block';
+            previewContent.textContent = 'Loading snapshot preview...';
+
+            const payload = {
+                url: url,
+                type: document.getElementById('monitorType').value,
+                selector: document.getElementById('monitorSelector').value,
+                browser_template: document.getElementById('monitorTemplate').value,
+                custom_headers: document.getElementById('monitorHeaders').value,
+                cookies: document.getElementById('monitorCookies').value,
+                strip_tags: document.getElementById('monitorStripTags').checked,
+                csrf_token: csrfToken,
+            };
+
+            try {
+                const res = await fetch('api.php?action=test_preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    previewMeta.innerHTML = `<span class="badge badge-active">HTTP ${data.http_code}</span> &bull; Extracted Size: ${data.extracted_length} chars &bull; Speed: ${data.duration_ms}ms`;
+                    previewContent.textContent = data.extracted || '(Empty match result)';
+                    showToast('Extraction preview successful!', 'success');
+                } else {
+                    previewMeta.innerHTML = `<span class="badge badge-error">Failed (${data.http_code || 'Error'})</span> &bull; Speed: ${data.duration_ms || 0}ms`;
+                    previewContent.textContent = 'Error: ' + (data.error || 'Unknown extraction error');
+                    showToast(data.error || 'Extraction failed', 'error');
+                }
+            } catch (err) {
+                previewContent.textContent = 'Request error: ' + err.message;
+                showToast('Failed to fetch preview', 'error');
+            } finally {
+                testPreviewBtn.disabled = false;
+                testPreviewBtn.innerHTML = 'Test & Live Preview';
+            }
+        });
+    }
+
+    // --- Action: Run Single Monitor ---
+    window.runCheck = async function(id, btn) {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳';
+        }
+        try {
+            const res = await fetch('api.php?action=run_check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify({ id: id, csrf_token: csrfToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const r = data.result;
+                if (r.changed) {
+                    showToast(`🚨 Change detected on monitor! (${r.duration_ms}ms)`, 'error');
+                } else if (r.success) {
+                    showToast(`✅ Check passed. No changes detected (${r.duration_ms}ms)`, 'success');
+                } else {
+                    showToast(`⚠️ Check failed: ${r.error}`, 'error');
+                }
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast(data.error || 'Check failed', 'error');
+            }
+        } catch (e) {
+            showToast('Network error running check', 'error');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '▶';
+            }
+        }
+    };
+
+    // --- Action: Run All Monitors ---
+    const runAllBtn = document.getElementById('runAllBtn');
+    if (runAllBtn) {
+        runAllBtn.addEventListener('click', async () => {
+            runAllBtn.disabled = true;
+            runAllBtn.innerHTML = 'Running checks...';
+            try {
+                const res = await fetch('api.php?action=run_all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify({ csrf_token: csrfToken })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('All monitors checked successfully!', 'success');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast(data.error || 'Failed to run all', 'error');
+                }
+            } catch (err) {
+                showToast('Network error running all checks', 'error');
+            } finally {
+                runAllBtn.disabled = false;
+                runAllBtn.innerHTML = '▶ Run All Checks';
+            }
+        });
+    }
+
+    // --- Action: Delete Monitor ---
+    window.deleteMonitor = async function(id, name) {
+        if (!confirm(`Are you sure you want to delete monitor "${name}"?`)) {
+            return;
+        }
+        try {
+            const res = await fetch('api.php?action=delete_monitor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify({ id: id, csrf_token: csrfToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Monitor deleted', 'success');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                showToast(data.error || 'Failed to delete', 'error');
+            }
+        } catch (e) {
+            showToast('Network error deleting monitor', 'error');
+        }
+    };
+
+    // --- Action: View History & Snapshot ---
+    window.viewHistory = async function(id) {
+        openModal('historyModal');
+        const historyLogs = document.getElementById('historyLogs');
+        const historySnapshot = document.getElementById('historySnapshot');
+        const historyTitle = document.getElementById('historyModalTitle');
+
+        historyLogs.textContent = 'Loading history...';
+        historySnapshot.textContent = 'Loading snapshot...';
+
+        try {
+            const res = await fetch(`api.php?action=get_history&id=${encodeURIComponent(id)}`);
+            const data = await res.json();
+            if (data.success) {
+                historyTitle.textContent = `History: ${data.monitor?.name || id}`;
+                historyLogs.textContent = data.history_log || 'No history recorded yet.';
+                historySnapshot.textContent = data.latest_snapshot || 'No snapshot captured yet.';
+            } else {
+                historyLogs.textContent = 'Failed to load history: ' + data.error;
+            }
+        } catch (e) {
+            historyLogs.textContent = 'Network error loading history: ' + e.message;
+        }
+    };
+
+    // --- Settings Form ---
+    const settingsForm = document.getElementById('settingsForm');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = settingsForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Saving Settings...';
+
+            const payload = {
+                gmail_smtp_host: document.getElementById('settingSmtpHost').value,
+                gmail_smtp_port: parseInt(document.getElementById('settingSmtpPort').value, 10),
+                gmail_smtp_user: document.getElementById('settingSmtpUser').value,
+                gmail_smtp_pass: document.getElementById('settingSmtpPass').value,
+                alert_email_to: document.getElementById('settingAlertEmail').value,
+                telegram_bot_token: document.getElementById('settingTelegramToken').value,
+                telegram_chat_id: document.getElementById('settingTelegramChatId').value,
+                openwa_api_url: document.getElementById('settingOpenwaUrl').value,
+                openwa_api_key: document.getElementById('settingOpenwaKey').value,
+                openwa_chat_id: document.getElementById('settingOpenwaChatId').value,
+                notify_on_change: document.getElementById('settingNotifyChange').checked,
+                notify_on_error: document.getElementById('settingNotifyError').checked,
+                default_interval_mins: parseInt(document.getElementById('settingDefaultInterval').value, 10),
+                new_password: document.getElementById('settingNewPassword').value,
+                csrf_token: csrfToken,
+            };
+
+            try {
+                const res = await fetch('api.php?action=save_settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Settings saved successfully!', 'success');
+                    document.getElementById('settingNewPassword').value = '';
+                } else {
+                    showToast(data.error || 'Failed to save settings', 'error');
+                }
+            } catch (err) {
+                showToast('Network error saving settings', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Save All Settings';
+            }
+        });
+    }
+
+    // --- Test Notification Buttons ---
+    document.querySelectorAll('.test-notify-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const channel = btn.getAttribute('data-channel');
+            btn.disabled = true;
+            const orig = btn.innerHTML;
+            btn.innerHTML = 'Testing...';
+
+            const payload = {
+                channel: channel,
+                telegram_bot_token: document.getElementById('settingTelegramToken')?.value,
+                telegram_chat_id: document.getElementById('settingTelegramChatId')?.value,
+                openwa_api_url: document.getElementById('settingOpenwaUrl')?.value,
+                openwa_api_key: document.getElementById('settingOpenwaKey')?.value,
+                openwa_chat_id: document.getElementById('settingOpenwaChatId')?.value,
+                gmail_smtp_host: document.getElementById('settingSmtpHost')?.value,
+                gmail_smtp_port: document.getElementById('settingSmtpPort')?.value,
+                gmail_smtp_user: document.getElementById('settingSmtpUser')?.value,
+                gmail_smtp_pass: document.getElementById('settingSmtpPass')?.value,
+                alert_email_to: document.getElementById('settingAlertEmail')?.value,
+                csrf_token: csrfToken,
+            };
+
+            try {
+                const res = await fetch('api.php?action=test_notification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const result = data.results[channel];
+                    if (result && result.success) {
+                        showToast(`✅ ${channel.toUpperCase()} notification delivered!`, 'success');
+                    } else {
+                        showToast(`❌ ${channel.toUpperCase()} error: ${result?.error || 'Failed'}`, 'error');
+                    }
+                } else {
+                    showToast(data.error || 'Test notification failed', 'error');
+                }
+            } catch (err) {
+                showToast('Network error sending test notification', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            }
+        });
+    });
+});

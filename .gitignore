@@ -1,0 +1,13 @@
+.env
+.env.local
+.DS_Store
+*.log
+data/history/*
+!data/history/.gitkeep
+data/logs/*
+!data/logs/.gitkeep
+data/monitors.json
+data/settings.json
+data/stats.json
+data/auth.json
+vendor/
