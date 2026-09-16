@@ -82,7 +82,6 @@ if (!Auth::check()) {
                     <div class="form-group">
                         <label class="form-label" for="password">Admin Password</label>
                         <input type="password" id="password" name="password" class="form-control" placeholder="Enter password..." required autofocus>
-                        <p class="form-help">Default password is <code>admin</code> (or set in <code>.env</code>).</p>
                     </div>
                     <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Unlock Dashboard</button>
                 </form>
