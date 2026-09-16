@@ -255,6 +255,38 @@ try {
             echo json_encode(['success' => true, 'results' => $results]);
             break;
 
+        // --- Export Full Backup JSON ---
+        case 'export_backup':
+            $backupData = Storage::createBackupData();
+            $filename = 'changemonitor_backup_' . date('Y-m-d_His') . '.json';
+            
+            header('Content-Type: application/json; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            echo json_encode($backupData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            exit;
+
+        // --- Restore Full Backup JSON ---
+        case 'restore_backup':
+            $jsonContent = '';
+            if (isset($_FILES['backup_file']) && $_FILES['backup_file']['error'] === UPLOAD_ERR_OK) {
+                $jsonContent = file_get_contents($_FILES['backup_file']['tmp_name']);
+            } elseif (!empty($input['backup_data'])) {
+                $jsonContent = is_string($input['backup_data']) ? $input['backup_data'] : json_encode($input['backup_data']);
+            }
+
+            if (empty($jsonContent)) {
+                throw new \InvalidArgumentException('No backup file or data provided.');
+            }
+
+            $backupArray = json_decode($jsonContent, true);
+            if (!$backupArray) {
+                throw new \InvalidArgumentException('Uploaded file is not a valid JSON backup: ' . json_last_error_msg());
+            }
+
+            Storage::restoreBackupData($backupArray);
+            echo json_encode(['success' => true, 'message' => 'Backup restored successfully!']);
+            break;
+
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid or missing API action']);

@@ -13,4 +13,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Multi-channel notification dispatcher supporting Gmail SMTP (socket/TLS with App Passwords), Telegram Bot API, and OpenWA WhatsApp webhooks.
 - Single-page responsive dark admin dashboard with analytics cards, live selector preview modal, history/snapshot viewer, and settings management.
 - Standalone CLI / cPanel / Webhook cron runner `cron.php` with secret token authentication.
-- GitHub Actions deployment workflow `.github/workflows/deploy.yml` for Bluehost SFTP/FTP.
+- Single-file full backup export and one-click restore (monitors, settings, notification tokens, stats, and text snapshot logs).

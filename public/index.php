@@ -438,6 +438,22 @@ foreach ($monitors as $m) {
                         </div>
                     </div>
 
+                    <!-- Full Single-File Backup & Restore -->
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                        <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--success);">💾 Single-File Full Backup & Restore</h4>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Export everything (all target monitors, settings, notification tokens, stats, and text history snapshot logs) into a single downloadable JSON backup file, or restore your entire configuration in one click.
+                        </p>
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                            <a href="api.php?action=export_backup" class="btn btn-secondary btn-sm" download>⬇️ Download Full Backup (.json)</a>
+                            
+                            <label class="btn btn-primary btn-sm" style="margin: 0; cursor: pointer;">
+                                ⬆️ Restore Backup File
+                                <input type="file" id="restoreFileInput" accept=".json" style="display: none;">
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Bluehost cPanel Cron Setup Info -->
                     <div style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
                         <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--info);">🕒 Bluehost cPanel Cron Setup</h4>

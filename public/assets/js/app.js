@@ -426,4 +426,44 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // --- Single-File Backup Restore Handler ---
+    const restoreFileInput = document.getElementById('restoreFileInput');
+    if (restoreFileInput) {
+        restoreFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!confirm(`Are you sure you want to restore "${file.name}"? This will overwrite existing targets and settings with the backup file data.`)) {
+                restoreFileInput.value = '';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('backup_file', file);
+            formData.append('csrf_token', csrfToken);
+
+            showToast('Restoring backup file...', 'info');
+
+            try {
+                const res = await fetch('api.php?action=restore_backup', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrfToken },
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ Full backup restored successfully!', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('❌ Restore failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                showToast('Network error while restoring backup file', 'error');
+            } finally {
+                restoreFileInput.value = '';
+            }
+        });
+    }
 });
+

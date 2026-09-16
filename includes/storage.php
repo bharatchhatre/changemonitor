@@ -280,4 +280,83 @@ class Storage {
     public static function saveAuthInfo(array $auth): bool {
         return self::writeJson(self::$authFile, $auth);
     }
+
+    // --- Full Backup & Restore ---
+
+    /**
+     * Create a complete backup bundle array (monitors, settings, stats, auth, history, and snapshots)
+     */
+    public static function createBackupData(): array {
+        $backup = [
+            'version' => CM_VERSION,
+            'exported_at' => date('c'),
+            'monitors' => self::getMonitors(),
+            'settings' => self::getSettings(),
+            'stats' => self::getStats(),
+            'history' => [],
+        ];
+
+        // Include text history files and snapshots
+        if (is_dir(CM_HISTORY_DIR)) {
+            $dirs = glob(CM_HISTORY_DIR . '/*', GLOB_ONLYDIR);
+            if ($dirs) {
+                foreach ($dirs as $mDir) {
+                    $mId = basename($mDir);
+                    $backup['history'][$mId] = [
+                        'log' => file_exists("$mDir/history.log") ? file_get_contents("$mDir/history.log") : '',
+                        'latest' => file_exists("$mDir/latest.txt") ? file_get_contents("$mDir/latest.txt") : '',
+                    ];
+                }
+            }
+        }
+
+        return $backup;
+    }
+
+    /**
+     * Restore database and text files from backup data array
+     */
+    public static function restoreBackupData(array $backup): bool {
+        if (empty($backup['version']) || !isset($backup['monitors'])) {
+            throw new \InvalidArgumentException('Invalid backup archive structure.');
+        }
+
+        // Restore monitors
+        if (isset($backup['monitors']) && is_array($backup['monitors'])) {
+            self::writeJson(self::$monitorsFile, $backup['monitors']);
+        }
+
+        // Restore settings (preserve if not provided)
+        if (isset($backup['settings']) && is_array($backup['settings'])) {
+            self::writeJson(self::$settingsFile, $backup['settings']);
+        }
+
+        // Restore stats
+        if (isset($backup['stats']) && is_array($backup['stats'])) {
+            self::writeJson(self::$statsFile, $backup['stats']);
+        }
+
+        // Restore history logs and snapshots
+        if (isset($backup['history']) && is_array($backup['history'])) {
+            foreach ($backup['history'] as $mId => $item) {
+                // Sanitize directory name
+                $cleanId = preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)$mId);
+                if (empty($cleanId)) continue;
+
+                $targetDir = CM_HISTORY_DIR . '/' . $cleanId;
+                if (!is_dir($targetDir)) {
+                    @mkdir($targetDir, 0755, true);
+                }
+                if (isset($item['log'])) {
+                    file_put_contents("$targetDir/history.log", (string)$item['log'], LOCK_EX);
+                }
+                if (isset($item['latest'])) {
+                    file_put_contents("$targetDir/latest.txt", (string)$item['latest'], LOCK_EX);
+                }
+            }
+        }
+
+        return true;
+    }
 }
+
