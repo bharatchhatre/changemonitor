@@ -75,16 +75,21 @@ try {
                 ['strip_tags' => $stripTags, 'trim_whitespace' => true]
             );
 
+            $extracted = $extractResult['extracted'] ?? '';
+            // Ensure valid UTF-8
+            if (!mb_check_encoding($extracted, 'UTF-8')) {
+                $extracted = mb_convert_encoding($extracted, 'UTF-8', 'UTF-8, ISO-8859-1, WINDOWS-1252');
+            }
+
             echo json_encode([
                 'success' => $extractResult['success'],
                 'http_code' => $fetchResult['http_code'],
                 'content_type' => $fetchResult['content_type'],
                 'duration_ms' => $fetchResult['duration_ms'],
-                'extracted' => $extractResult['extracted'],
-                'extracted_length' => strlen($extractResult['extracted']),
-                'raw_body_snippet' => substr($fetchResult['body'], 0, 1500),
+                'extracted' => $extracted,
+                'extracted_length' => strlen($extracted),
                 'error' => $extractResult['error'],
-            ]);
+            ], JSON_INVALID_UTF8_SUBSTITUTE);
             break;
 
         // --- Save / Create Monitor ---

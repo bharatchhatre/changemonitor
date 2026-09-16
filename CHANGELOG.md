@@ -29,4 +29,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added live, second-by-second **Next Check** countdown timer column on active and inactive target tables.
 - Added server CA bundle discovery and automatic SSL fallback retry for legacy government endpoints with missing local issuer certs.
 - Added self-healing anti-bot retry with automatic cookie-jar reset and clean header fallback for Azure FrontDoor WAF 403/400 blocks.
+- Added UTF-8 character sanitization with `JSON_INVALID_UTF8_SUBSTITUTE` for live extraction previews.
 

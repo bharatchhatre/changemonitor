@@ -270,7 +270,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
                     body: JSON.stringify(payload)
                 });
-                const data = await res.json();
+                const text = await res.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error(text.trim() || 'Invalid response from server');
+                }
+
                 if (data.success) {
                     previewMeta.innerHTML = `<span class="badge badge-active">HTTP ${data.http_code}</span> &bull; Extracted Size: ${data.extracted_length} chars &bull; Speed: ${data.duration_ms}ms`;
                     previewContent.textContent = data.extracted || '(Empty match result)';
@@ -282,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (err) {
                 previewContent.textContent = 'Request error: ' + err.message;
-                showToast('Failed to fetch preview', 'error');
+                showToast('Failed to fetch preview: ' + err.message, 'error');
             } finally {
                 testPreviewBtn.disabled = false;
                 testPreviewBtn.innerHTML = 'Test & Live Preview';
