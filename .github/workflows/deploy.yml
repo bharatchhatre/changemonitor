@@ -31,7 +31,7 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           port: ${{ secrets.FTP_PORT || 21 }}
-          server-dir: ${{ secrets.FTP_REMOTE_DIR || 'public_html/changemonitor/' }}
+          server-dir: ${{ secrets.FTP_REMOTE_DIR || '/' }}
           exclude: |
             **/.git*
             **/.git*/**
