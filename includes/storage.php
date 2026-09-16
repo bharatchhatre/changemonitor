@@ -109,6 +109,7 @@ class Storage {
 
     public static function getSettings(): array {
         $defaults = [
+            'app_timezone' => cm_env('APP_TIMEZONE', 'Asia/Kolkata'),
             'gmail_smtp_host' => cm_env('GMAIL_SMTP_HOST', 'smtp.gmail.com'),
             'gmail_smtp_port' => (int)cm_env('GMAIL_SMTP_PORT', 587),
             'gmail_smtp_user' => cm_env('GMAIL_SMTP_USER', ''),
@@ -125,12 +126,22 @@ class Storage {
             'user_browser_templates' => [],
         ];
         $saved = self::readJson(self::$settingsFile, []);
-        return array_merge($defaults, $saved);
+        $merged = array_merge($defaults, $saved);
+
+        // Keep runtime PHP timezone synchronized
+        if (!empty($merged['app_timezone'])) {
+            @date_default_timezone_set($merged['app_timezone']);
+        }
+
+        return $merged;
     }
 
     public static function saveSettings(array $newSettings): bool {
         $current = self::getSettings();
         $merged = array_merge($current, $newSettings);
+        if (!empty($merged['app_timezone'])) {
+            @date_default_timezone_set($merged['app_timezone']);
+        }
         return self::writeJson(self::$settingsFile, $merged);
     }
 

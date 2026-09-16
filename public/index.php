@@ -474,16 +474,35 @@ foreach ($monitors as $m) {
 
                     <!-- Notification Conditions & General Settings -->
                     <div style="margin-bottom: 2rem;">
-                        <h3 style="font-size: 1rem; margin-bottom: 1rem;">⚙️ Triggers & Admin Security</h3>
+                        <h3 style="font-size: 1rem; margin-bottom: 1rem;">⚙️ System Settings & Security</h3>
                         <div class="form-grid">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="settingNotifyChange" <?= !empty($settings['notify_on_change']) ? 'checked' : '' ?>>
-                                Notify on Detected Changes
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="settingNotifyError" <?= !empty($settings['notify_on_error']) ? 'checked' : '' ?>>
-                                Notify on Check Errors (4xx/5xx/Timeouts)
-                            </label>
+                            <div class="form-group">
+                                <label class="form-label" for="settingAppTimezone">Application Timezone</label>
+                                <select id="settingAppTimezone" class="form-control">
+                                    <?php
+                                    $currentTimezone = $settings['app_timezone'] ?? 'Asia/Kolkata';
+                                    $commonTimezones = [
+                                        'Asia/Kolkata' => 'Asia/Kolkata (IST +5:30) [Default]',
+                                        'UTC' => 'UTC (+0:00)',
+                                        'America/New_York' => 'America/New York (EST/EDT)',
+                                        'America/Chicago' => 'America/Chicago (CST/CDT)',
+                                        'America/Los_Angeles' => 'America/Los Angeles (PST/PDT)',
+                                        'Europe/London' => 'Europe/London (GMT/BST)',
+                                        'Europe/Paris' => 'Europe/Paris (CET/CEST)',
+                                        'Asia/Dubai' => 'Asia/Dubai (GST +4:00)',
+                                        'Asia/Singapore' => 'Asia/Singapore (SGT +8:00)',
+                                        'Asia/Tokyo' => 'Asia/Tokyo (JST +9:00)',
+                                        'Australia/Sydney' => 'Australia/Sydney (AEST/AEDT)',
+                                    ];
+                                    foreach ($commonTimezones as $tzKey => $tzLabel):
+                                    ?>
+                                        <option value="<?= htmlspecialchars($tzKey) ?>" <?= $currentTimezone === $tzKey ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($tzLabel) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="form-help">Current Server Time: <strong><?= date('Y-m-d H:i:s T') ?></strong></p>
+                            </div>
                             <div class="form-group">
                                 <label class="form-label" for="settingDefaultInterval">Default Check Interval (Minutes)</label>
                                 <input type="number" id="settingDefaultInterval" class="form-control" min="1" value="<?= (int)($settings['default_interval_mins'] ?? 15) ?>">
@@ -492,6 +511,17 @@ foreach ($monitors as $m) {
                                 <label class="form-label" for="settingNewPassword">Update Admin Password</label>
                                 <input type="password" id="settingNewPassword" class="form-control" placeholder="Leave blank to keep current password">
                             </div>
+                        </div>
+
+                        <div class="form-grid" style="margin-top: 1rem;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="settingNotifyChange" <?= !empty($settings['notify_on_change']) ? 'checked' : '' ?>>
+                                Notify on Detected Changes
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="settingNotifyError" <?= !empty($settings['notify_on_error']) ? 'checked' : '' ?>>
+                                Notify on Check Errors (4xx/5xx/Timeouts)
+                            </label>
                         </div>
                     </div>
 
@@ -579,8 +609,49 @@ foreach ($monitors as $m) {
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="monitorInterval">Check Interval (Minutes)</label>
+                            <label class="form-label" for="monitorInterval">Standard Interval (Minutes)</label>
                             <input type="number" id="monitorInterval" class="form-control" min="1" value="15">
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Peak/Off-Peak Schedule Options -->
+                    <div style="background: rgba(15, 23, 42, 0.7); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1.25rem;">
+                        <label class="checkbox-label" style="min-height: auto; margin-bottom: 0.75rem;">
+                            <input type="checkbox" id="monitorPeakScheduleEnabled">
+                            <strong>⚡ Enable Peak/Off-Peak Request Frequency</strong>
+                        </label>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                            Send more frequent checks during high-priority hours (e.g. market/business hours) and fewer checks during off-hours.
+                        </p>
+                        <div id="peakScheduleFields" style="display: none;">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label" for="monitorPeakStart">Peak Start Hour (24h)</label>
+                                    <select id="monitorPeakStart" class="form-control">
+                                        <?php for ($h = 0; $h < 24; $h++): ?>
+                                            <option value="<?= $h ?>" <?= $h === 9 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="monitorPeakEnd">Peak End Hour (24h)</label>
+                                    <select id="monitorPeakEnd" class="form-control">
+                                        <?php for ($h = 0; $h < 24; $h++): ?>
+                                            <option value="<?= $h ?>" <?= $h === 18 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                                        <?php endfor; ?>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label" for="monitorPeakInterval">Peak Interval (More Frequent)</label>
+                                    <input type="number" id="monitorPeakInterval" class="form-control" min="1" value="5" placeholder="e.g. 5 mins">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="monitorOffpeakInterval">Off-Peak Interval (Less Frequent)</label>
+                                    <input type="number" id="monitorOffpeakInterval" class="form-control" min="1" value="60" placeholder="e.g. 60 mins">
+                                </div>
+                            </div>
                         </div>
                     </div>
 

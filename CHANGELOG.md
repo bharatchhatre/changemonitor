@@ -16,5 +16,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Single-file full backup export and one-click restore (monitors, settings, notification tokens, stats, and text snapshot logs).
 - Root `.htaccess` to transparently serve `/public/` from root directory `/changedetector/`.
 - Extensionless `.php` routing and server `X-Powered-By` header removal.
-- Robust fallback authentication and lockout reset mechanism.
 - Searchable and filterable server error and system logs tab in admin dashboard.
+- Configurable global application timezone with `Asia/Kolkata` (IST +5:30) as default.
+- Target-specific peak vs off-peak request scheduling (e.g. higher frequency during custom business/market hours).

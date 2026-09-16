@@ -14,6 +14,35 @@ require_once __DIR__ . '/notifier.php';
 
 class Engine {
     /**
+     * Calculate active interval for a monitor based on peak/active hours
+     */
+    public static function getActiveIntervalMins(array $monitor): int {
+        $baseInterval = (int)($monitor['interval_mins'] ?? 15);
+        
+        // If peak schedule is enabled for this monitor
+        if (!empty($monitor['peak_schedule_enabled'])) {
+            $currentHour = (int)date('G'); // 0-23 in configured app timezone
+            $peakStart = (int)($monitor['peak_start_hour'] ?? 9);
+            $peakEnd = (int)($monitor['peak_end_hour'] ?? 18);
+            $peakInterval = max(1, (int)($monitor['peak_interval_mins'] ?? 5));
+            $offPeakInterval = max(1, (int)($monitor['offpeak_interval_mins'] ?? 60));
+
+            $isPeak = false;
+            if ($peakStart <= $peakEnd) {
+                // e.g. 9:00 to 18:00
+                $isPeak = ($currentHour >= $peakStart && $currentHour < $peakEnd);
+            } else {
+                // Overnight e.g. 22:00 to 6:00
+                $isPeak = ($currentHour >= $peakStart || $currentHour < $peakEnd);
+            }
+
+            return $isPeak ? $peakInterval : $offPeakInterval;
+        }
+
+        return max(1, $baseInterval);
+    }
+
+    /**
      * Execute a single monitor check
      *
      * @param string $monitorId
@@ -26,12 +55,12 @@ class Engine {
             return ['success' => false, 'changed' => false, 'error' => 'Monitor not found'];
         }
 
-        // If not force check, verify interval
+        // If not force check, verify dynamic interval
         if (!$forceCheck) {
-            $intervalMins = (int)($monitor['interval_mins'] ?? 15);
+            $effectiveInterval = self::getActiveIntervalMins($monitor);
             $lastCheck = !empty($monitor['last_check_at']) ? strtotime($monitor['last_check_at']) : 0;
-            if (time() - $lastCheck < ($intervalMins * 60)) {
-                return ['success' => true, 'changed' => false, 'skipped' => true, 'message' => 'Interval not elapsed yet'];
+            if (time() - $lastCheck < ($effectiveInterval * 60)) {
+                return ['success' => true, 'changed' => false, 'skipped' => true, 'message' => "Interval not elapsed yet ({$effectiveInterval}m dynamic schedule)"];
             }
         }
 

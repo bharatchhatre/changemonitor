@@ -105,6 +105,11 @@ try {
                 'custom_headers' => $input['custom_headers'] ?? '',
                 'cookies' => $input['cookies'] ?? '',
                 'interval_mins' => max(1, (int)($input['interval_mins'] ?? 15)),
+                'peak_schedule_enabled' => !empty($input['peak_schedule_enabled']),
+                'peak_start_hour' => max(0, min(23, (int)($input['peak_start_hour'] ?? 9))),
+                'peak_end_hour' => max(0, min(23, (int)($input['peak_end_hour'] ?? 18))),
+                'peak_interval_mins' => max(1, (int)($input['peak_interval_mins'] ?? 5)),
+                'offpeak_interval_mins' => max(1, (int)($input['offpeak_interval_mins'] ?? 60)),
                 'timeout' => max(5, min(60, (int)($input['timeout'] ?? 25))),
                 'strip_tags' => !empty($input['strip_tags']),
                 'simulate_delay' => !empty($input['simulate_delay']),
@@ -182,6 +187,7 @@ try {
         // --- Save Global Settings ---
         case 'save_settings':
             $settingsData = [
+                'app_timezone' => trim($input['app_timezone'] ?? 'Asia/Kolkata'),
                 'gmail_smtp_host' => trim($input['gmail_smtp_host'] ?? 'smtp.gmail.com'),
                 'gmail_smtp_port' => (int)($input['gmail_smtp_port'] ?? 587),
                 'gmail_smtp_user' => trim($input['gmail_smtp_user'] ?? ''),

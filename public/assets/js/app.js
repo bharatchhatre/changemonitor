@@ -107,10 +107,33 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('monitorSimulateDelay').checked = !!data.simulate_delay;
             document.getElementById('monitorNotifyChange').checked = (data.notify_on_change !== false);
             document.getElementById('monitorNotifyError').checked = (data.notify_on_error !== false);
+
+            const peakEnabled = !!data.peak_schedule_enabled;
+            const peakCheckbox = document.getElementById('monitorPeakScheduleEnabled');
+            const peakFields = document.getElementById('peakScheduleFields');
+            if (peakCheckbox) peakCheckbox.checked = peakEnabled;
+            if (peakFields) peakFields.style.display = peakEnabled ? 'block' : 'none';
+
+            if (document.getElementById('monitorPeakStart')) document.getElementById('monitorPeakStart').value = data.peak_start_hour ?? 9;
+            if (document.getElementById('monitorPeakEnd')) document.getElementById('monitorPeakEnd').value = data.peak_end_hour ?? 18;
+            if (document.getElementById('monitorPeakInterval')) document.getElementById('monitorPeakInterval').value = data.peak_interval_mins ?? 5;
+            if (document.getElementById('monitorOffpeakInterval')) document.getElementById('monitorOffpeakInterval').value = data.offpeak_interval_mins ?? 60;
+
             document.getElementById('previewOutput').style.display = 'none';
             openModal('monitorModal');
         }
     };
+
+    // Toggle Peak Schedule UI
+    const monitorPeakScheduleEnabled = document.getElementById('monitorPeakScheduleEnabled');
+    if (monitorPeakScheduleEnabled) {
+        monitorPeakScheduleEnabled.addEventListener('change', (e) => {
+            const peakFields = document.getElementById('peakScheduleFields');
+            if (peakFields) {
+                peakFields.style.display = e.target.checked ? 'block' : 'none';
+            }
+        });
+    }
 
     // --- Save Monitor Form ---
     if (monitorForm) {
@@ -129,6 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 selector: document.getElementById('monitorSelector').value,
                 browser_template: document.getElementById('monitorTemplate').value,
                 interval_mins: parseInt(document.getElementById('monitorInterval').value, 10),
+                peak_schedule_enabled: document.getElementById('monitorPeakScheduleEnabled')?.checked || false,
+                peak_start_hour: parseInt(document.getElementById('monitorPeakStart')?.value || '9', 10),
+                peak_end_hour: parseInt(document.getElementById('monitorPeakEnd')?.value || '18', 10),
+                peak_interval_mins: parseInt(document.getElementById('monitorPeakInterval')?.value || '5', 10),
+                offpeak_interval_mins: parseInt(document.getElementById('monitorOffpeakInterval')?.value || '60', 10),
                 custom_headers: document.getElementById('monitorHeaders').value,
                 cookies: document.getElementById('monitorCookies').value,
                 strip_tags: document.getElementById('monitorStripTags').checked,
@@ -339,6 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.innerHTML = 'Saving Settings...';
 
             const payload = {
+                app_timezone: document.getElementById('settingAppTimezone')?.value || 'Asia/Kolkata',
                 gmail_smtp_host: document.getElementById('settingSmtpHost').value,
                 gmail_smtp_port: parseInt(document.getElementById('settingSmtpPort').value, 10),
                 gmail_smtp_user: document.getElementById('settingSmtpUser').value,

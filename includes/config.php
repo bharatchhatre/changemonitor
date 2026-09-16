@@ -59,6 +59,13 @@ function cm_env(string $key, mixed $default = null): mixed {
     };
 }
 
+// Global Timezone Initialization (Default Asia/Kolkata - IST)
+$appTimezone = cm_env('APP_TIMEZONE', 'Asia/Kolkata');
+if (!@date_default_timezone_set($appTimezone)) {
+    date_default_timezone_set('Asia/Kolkata');
+}
+
+
 // Directory constants
 $customDataPath = cm_env('DATA_PATH');
 if ($customDataPath && !str_starts_with($customDataPath, '/')) {
