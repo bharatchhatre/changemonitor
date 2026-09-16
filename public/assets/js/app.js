@@ -309,6 +309,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Action: Toggle Status (Enable/Disable Monitor) ---
+    window.toggleStatus = async function(id, btn) {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '⏳';
+        }
+        try {
+            const res = await fetch('api.php?action=toggle_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify({ id: id, csrf_token: csrfToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(`Monitor ${data.status === 'active' ? 'enabled & active' : 'disabled & paused'}`, 'success');
+                setTimeout(() => location.reload(), 400);
+            } else {
+                showToast(data.error || 'Failed to toggle monitor status', 'error');
+            }
+        } catch (e) {
+            showToast('Network error updating status', 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    };
+
     // --- Action: Delete Monitor ---
     window.deleteMonitor = async function(id, name) {
         if (!confirm(`Are you sure you want to delete monitor "${name}"?`)) {

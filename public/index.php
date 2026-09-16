@@ -247,7 +247,12 @@ foreach ($monitors as $m) {
                                             <?php endif; ?>
                                         </td>
                                         <td style="text-align: right; white-space: nowrap;">
-                                            <button class="btn btn-secondary btn-sm" onclick="runCheck('<?= $id ?>', this)" title="Run Check Now">▶</button>
+                                            <?php if (($m['status'] ?? 'active') === 'active'): ?>
+                                                <button class="btn btn-secondary btn-sm" onclick="toggleStatus('<?= $id ?>', this)" title="Pause / Disable Monitor" style="color: var(--warning);">⏸️</button>
+                                            <?php else: ?>
+                                                <button class="btn btn-secondary btn-sm" onclick="toggleStatus('<?= $id ?>', this)" title="Resume / Enable Monitor" style="color: var(--success);">▶️</button>
+                                            <?php endif; ?>
+                                            <button class="btn btn-secondary btn-sm" onclick="runCheck('<?= $id ?>', this)" title="Run Check Now">⚡</button>
                                             <button class="btn btn-secondary btn-sm" onclick="viewHistory('<?= $id ?>')" title="View History & Snapshots">📜</button>
                                             <button class="btn btn-secondary btn-sm" onclick='editMonitor(<?= json_encode($m, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' title="Edit Monitor">✏️</button>
                                             <button class="btn btn-danger btn-sm" onclick="deleteMonitor('<?= $id ?>', '<?= htmlspecialchars(addslashes($m['name'])) ?>')" title="Delete">🗑️</button>

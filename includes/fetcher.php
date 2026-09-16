@@ -71,9 +71,25 @@ class Fetcher {
                     'Sec-Fetch-Site' => 'none',
                 ],
             ],
+            'gov_portal' => [
+                'name' => 'Government / Azure FrontDoor Portal (Anti-Bot Bypass)',
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+                'headers' => [
+                    'Accept' => 'application/json, text/plain, */*',
+                    'Accept-Language' => 'en-US,en;q=0.9,hi;q=0.8',
+                    'Origin' => 'https://bookmyhomeapplication.mhada.gov.in',
+                    'Referer' => 'https://bookmyhomeapplication.mhada.gov.in/',
+                    'Sec-Ch-Ua' => '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
+                    'Sec-Ch-Ua-Mobile' => '?0',
+                    'Sec-Ch-Ua-Platform' => '"Windows"',
+                    'Sec-Fetch-Dest' => 'empty',
+                    'Sec-Fetch-Mode' => 'cors',
+                    'Sec-Fetch-Site' => 'same-origin',
+                ],
+            ],
             'json_api' => [
                 'name' => 'REST API Client (JSON / Microservice)',
-                'user_agent' => 'ChangeMonitor-Bot/1.0 (+https://github.com/bharatchhatre/changemonitor)',
+                'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
                 'headers' => [
                     'Accept' => 'application/json, text/plain, */*',
                     'Accept-Language' => 'en-US,en;q=0.9',
@@ -214,10 +230,18 @@ class Fetcher {
             curl_setopt($ch, CURLOPT_NOBODY, true);
         }
 
-        // Cookies
+        // Automatic Cookie Jar per Host / Target to retain session cookies (like ASLBSA / Cloudflare / Azure FrontDoor tokens)
+        $cookieJarFile = CM_DATA_DIR . '/logs/cookies_' . md5(parse_url($url, PHP_URL_HOST) ?? 'host') . '.txt';
+        curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarFile);
+        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarFile);
+
+        // Cookies explicitly supplied
         if (!empty($options['cookies'])) {
             curl_setopt($ch, CURLOPT_COOKIE, $options['cookies']);
         }
+
+        // Auto Referer
+        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
 
         // Proxy
         if (!empty($options['proxy'])) {

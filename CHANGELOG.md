@@ -19,3 +19,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Searchable and filterable server error and system logs tab in admin dashboard.
 - Configurable global application timezone with `Asia/Kolkata` (IST +5:30) as default.
 - Target-specific peak vs off-peak request scheduling (e.g. higher frequency during custom business/market hours).
+- Quick Enable / Disable (Pause / Resume) toggle buttons on monitors table.
+- Added Government / Azure FrontDoor Portal anti-bot profile with automatic persistent cookie jar session management to prevent 403 blocks.
+
