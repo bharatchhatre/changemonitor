@@ -151,6 +151,112 @@ class Storage {
         $entry .= "\n";
 
         file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
+
+        // Also record to centralized structured log
+        self::logAppEvent(
+            level: ($event === 'ERROR' || $event === 'EXTRACTION_ERROR') ? 'ERROR' : ($event === 'CHANGE_DETECTED' ? 'WARNING' : 'INFO'),
+            category: 'MONITOR',
+            message: $details,
+            context: ['monitor_id' => $monitorId, 'event' => $event]
+        );
+    }
+
+    /**
+     * Log centralized application or system error
+     */
+    public static function logAppEvent(string $level, string $category, string $message, array $context = []): void {
+        $logFile = CM_LOGS_DIR . '/error.log';
+        $entry = [
+            'id' => uniqid('log_', true),
+            'timestamp' => date('Y-m-d H:i:s'),
+            'level' => strtoupper($level), // ERROR, WARNING, INFO, DEBUG
+            'category' => strtoupper($category), // SYSTEM, MONITOR, AUTH, NOTIFIER, FETCHER
+            'message' => $message,
+            'context' => $context,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'CLI',
+        ];
+
+        $line = json_encode($entry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+        @file_put_contents($logFile, $line, FILE_APPEND | LOCK_EX);
+    }
+
+    /**
+     * Get searchable and filterable system logs
+     *
+     * @param string $search Search query substring in message or context
+     * @param string $level Filter by level (ERROR, WARNING, INFO)
+     * @param string $category Filter by category (SYSTEM, MONITOR, AUTH, etc.)
+     * @param int $limit Max rows to return
+     * @return array
+     */
+    public static function getLogs(string $search = '', string $level = '', string $category = '', int $limit = 200): array {
+        $logFile = CM_LOGS_DIR . '/error.log';
+        if (!file_exists($logFile)) {
+            return [];
+        }
+
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!$lines) {
+            return [];
+        }
+
+        $search = strtolower(trim($search));
+        $level = strtoupper(trim($level));
+        $category = strtoupper(trim($category));
+
+        $results = [];
+        // Read backwards for latest first
+        for ($i = count($lines) - 1; $i >= 0; $i--) {
+            $row = json_decode($lines[$i], true);
+            if (!$row || !is_array($row)) {
+                // Fallback for plain lines
+                $row = [
+                    'id' => 'raw_' . $i,
+                    'timestamp' => '',
+                    'level' => 'INFO',
+                    'category' => 'RAW',
+                    'message' => $lines[$i],
+                    'context' => [],
+                    'ip' => '',
+                ];
+            }
+
+            // Filter Level
+            if ($level !== '' && ($row['level'] ?? '') !== $level) {
+                continue;
+            }
+
+            // Filter Category
+            if ($category !== '' && ($row['category'] ?? '') !== $category) {
+                continue;
+            }
+
+            // Filter Search Term
+            if ($search !== '') {
+                $rawString = strtolower(($row['message'] ?? '') . ' ' . json_encode($row['context'] ?? []));
+                if (!str_contains($rawString, $search)) {
+                    continue;
+                }
+            }
+
+            $results[] = $row;
+            if (count($results) >= $limit) {
+                break;
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Clear application error log
+     */
+    public static function clearLogs(): bool {
+        $logFile = CM_LOGS_DIR . '/error.log';
+        if (file_exists($logFile)) {
+            return @unlink($logFile);
+        }
+        return true;
     }
 
     public static function saveSnapshot(string $monitorId, string $content): void {

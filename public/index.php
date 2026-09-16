@@ -138,6 +138,7 @@ foreach ($monitors as $m) {
         <nav class="tabs-nav">
             <button class="tab-btn active" data-tab="tab-monitors">🎯 Monitors (<?= count($monitors) ?>)</button>
             <button class="tab-btn" data-tab="tab-analytics">📊 Analytics</button>
+            <button class="tab-btn" data-tab="tab-logs">📋 Error & System Logs</button>
             <button class="tab-btn" data-tab="tab-templates">🛡️ Request Profiles</button>
             <button class="tab-btn" data-tab="tab-settings">⚙️ Settings & Notifications</button>
         </nav>
@@ -300,6 +301,63 @@ foreach ($monitors as $m) {
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: Error & System Logs (Searchable & Filterable) -->
+        <div class="tab-pane" id="tab-logs" style="display: none;">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Server Error & System Logs</div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary btn-sm" id="refreshLogsBtn">🔄 Refresh</button>
+                        <button class="btn btn-danger btn-sm" id="clearLogsBtn">🗑️ Clear Logs</button>
+                    </div>
+                </div>
+
+                <!-- Search & Filters Bar -->
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="logSearchInput" class="form-control" placeholder="🔍 Search message, error or monitor ID..." style="min-height: 38px;">
+                    </div>
+                    <div style="width: 150px;">
+                        <select id="logLevelSelect" class="form-control" style="min-height: 38px;">
+                            <option value="">All Levels</option>
+                            <option value="ERROR">ERROR</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="INFO">INFO</option>
+                        </select>
+                    </div>
+                    <div style="width: 150px;">
+                        <select id="logCategorySelect" class="form-control" style="min-height: 38px;">
+                            <option value="">All Categories</option>
+                            <option value="MONITOR">MONITOR</option>
+                            <option value="FETCHER">FETCHER</option>
+                            <option value="AUTH">AUTH</option>
+                            <option value="NOTIFIER">NOTIFIER</option>
+                            <option value="SYSTEM">SYSTEM</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table" id="logsTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 140px;">Timestamp</th>
+                                <th style="width: 90px;">Level</th>
+                                <th style="width: 110px;">Category</th>
+                                <th>Message / Context</th>
+                                <th style="width: 90px;">IP / Source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading logs...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>

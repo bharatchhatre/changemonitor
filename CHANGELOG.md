@@ -17,3 +17,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Root `.htaccess` to transparently serve `/public/` from root directory `/changedetector/`.
 - Extensionless `.php` routing and server `X-Powered-By` header removal.
 - Robust fallback authentication and lockout reset mechanism.
+- Searchable and filterable server error and system logs tab in admin dashboard.

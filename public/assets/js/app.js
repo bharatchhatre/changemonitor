@@ -465,5 +465,122 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // --- Searchable & Filterable Error Logs Controller ---
+    const logsTableBody = document.getElementById('logsTableBody');
+    const logSearchInput = document.getElementById('logSearchInput');
+    const logLevelSelect = document.getElementById('logLevelSelect');
+    const logCategorySelect = document.getElementById('logCategorySelect');
+    const refreshLogsBtn = document.getElementById('refreshLogsBtn');
+    const clearLogsBtn = document.getElementById('clearLogsBtn');
+
+    async function loadLogs() {
+        if (!logsTableBody) return;
+        const search = logSearchInput ? logSearchInput.value.trim() : '';
+        const level = logLevelSelect ? logLevelSelect.value : '';
+        const category = logCategorySelect ? logCategorySelect.value : '';
+
+        const params = new URLSearchParams({
+            action: 'get_logs',
+            search: search,
+            level: level,
+            category: category,
+            limit: 200
+        });
+
+        try {
+            const res = await fetch(`api.php?${params.toString()}`);
+            const data = await res.json();
+            if (!data.success) {
+                logsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 1.5rem;">Error: ${escapeHtml(data.error)}</td></tr>`;
+                return;
+            }
+
+            if (!data.logs || data.logs.length === 0) {
+                logsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No logs found matching criteria.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            data.logs.forEach(row => {
+                const levelBadge = row.level === 'ERROR' ? '<span class="badge badge-error">ERROR</span>'
+                    : (row.level === 'WARNING' ? '<span class="badge badge-changed">WARN</span>'
+                    : '<span class="badge badge-active">INFO</span>');
+
+                let contextStr = '';
+                if (row.context && Object.keys(row.context).length > 0) {
+                    contextStr = `<div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">${escapeHtml(JSON.stringify(row.context))}</div>`;
+                }
+
+                html += `
+                    <tr>
+                        <td style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">${escapeHtml(row.timestamp || '-')}</td>
+                        <td>${levelBadge}</td>
+                        <td><span class="badge badge-type">${escapeHtml(row.category || 'SYSTEM')}</span></td>
+                        <td>
+                            <div style="font-weight: 500;">${escapeHtml(row.message || '')}</div>
+                            ${contextStr}
+                        </td>
+                        <td style="font-size: 0.775rem; color: var(--text-muted);">${escapeHtml(row.ip || '-')}</td>
+                    </tr>
+                `;
+            });
+            logsTableBody.innerHTML = html;
+        } catch (e) {
+            logsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 1.5rem;">Network error fetching logs</td></tr>`;
+        }
+    }
+
+    if (refreshLogsBtn) {
+        refreshLogsBtn.addEventListener('click', loadLogs);
+    }
+
+    if (logLevelSelect) {
+        logLevelSelect.addEventListener('change', loadLogs);
+    }
+
+    if (logCategorySelect) {
+        logCategorySelect.addEventListener('change', loadLogs);
+    }
+
+    let searchTimeout = null;
+    if (logSearchInput) {
+        logSearchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(loadLogs, 300);
+        });
+    }
+
+    // Load logs automatically when tab is clicked
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.getAttribute('data-tab') === 'tab-logs') {
+                loadLogs();
+            }
+        });
+    });
+
+    if (clearLogsBtn) {
+        clearLogsBtn.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to clear all server logs?')) return;
+            try {
+                const res = await fetch('api.php?action=clear_logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify({ csrf_token: csrfToken })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Logs cleared', 'success');
+                    loadLogs();
+                } else {
+                    showToast(data.error || 'Failed to clear logs', 'error');
+                }
+            } catch (err) {
+                showToast('Network error clearing logs', 'error');
+            }
+        });
+    }
 });
+
 

@@ -287,6 +287,23 @@ try {
             echo json_encode(['success' => true, 'message' => 'Backup restored successfully!']);
             break;
 
+        // --- Search & Filter Application Logs ---
+        case 'get_logs':
+            $search = $_GET['search'] ?? $input['search'] ?? '';
+            $level = $_GET['level'] ?? $input['level'] ?? '';
+            $category = $_GET['category'] ?? $input['category'] ?? '';
+            $limit = (int)($_GET['limit'] ?? $input['limit'] ?? 200);
+
+            $logs = Storage::getLogs(search: $search, level: $level, category: $category, limit: $limit);
+            echo json_encode(['success' => true, 'logs' => $logs, 'count' => count($logs)]);
+            break;
+
+        // --- Clear Application Logs ---
+        case 'clear_logs':
+            Storage::clearLogs();
+            echo json_encode(['success' => true, 'message' => 'Logs cleared successfully']);
+            break;
+
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid or missing API action']);
@@ -296,3 +313,4 @@ try {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
+
