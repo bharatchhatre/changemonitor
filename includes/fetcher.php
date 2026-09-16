@@ -231,7 +231,11 @@ class Fetcher {
         }
 
         // Automatic Cookie Jar per Host / Target to retain session cookies (like ASLBSA / Cloudflare / Azure FrontDoor tokens)
-        $cookieJarFile = CM_DATA_DIR . '/logs/cookies_' . md5(parse_url($url, PHP_URL_HOST) ?? 'host') . '.txt';
+        $cookieLogDir = CM_DATA_DIR . '/logs';
+        if (!is_dir($cookieLogDir)) {
+            @mkdir($cookieLogDir, 0755, true);
+        }
+        $cookieJarFile = $cookieLogDir . '/cookies_' . md5(parse_url($url, PHP_URL_HOST) ?? 'host') . '.txt';
         curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarFile);
         curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarFile);
 
@@ -239,9 +243,6 @@ class Fetcher {
         if (!empty($options['cookies'])) {
             curl_setopt($ch, CURLOPT_COOKIE, $options['cookies']);
         }
-
-        // Auto Referer
-        curl_setopt($ch, CURLOPT_AUTOREFERER, true);
 
         // Proxy
         if (!empty($options['proxy'])) {

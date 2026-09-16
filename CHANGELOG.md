@@ -24,5 +24,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Selectable snapshot version history dropdown inside the History & Snapshots modal.
 - Replaced inline text history log box with a direct `.txt` download button and expanded snapshot viewer.
 - Fixed missing `break` in `get_history` API endpoint preventing corrupted JSON output.
-- Adjusted `gov_portal` browser profile headers to eliminate Azure FrontDoor WAF 403 Forbidden responses.
+- Adjusted `gov_portal` browser profile headers and disabled `CURLOPT_AUTOREFERER` to eliminate Azure FrontDoor WAF 403 Forbidden / 400 Bad Request responses.
 
