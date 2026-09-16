@@ -22,4 +22,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Quick Enable / Disable (Pause / Resume) toggle buttons on monitors table.
 - Added Government / Azure FrontDoor Portal anti-bot profile with automatic persistent cookie jar session management to prevent 403 blocks.
 - Selectable snapshot version history dropdown inside the History & Snapshots modal.
+- Replaced inline text history log box with a direct `.txt` download button and expanded snapshot viewer.
 

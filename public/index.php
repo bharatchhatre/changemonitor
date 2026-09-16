@@ -711,22 +711,30 @@ foreach ($monitors as $m) {
                 <button type="button" class="modal-close" onclick="closeModal('historyModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <h4 style="font-size: 0.9rem; color: var(--info); margin: 0;">📜 Execution & Change Log (Text File)</h4>
-                    <span id="historyLogMeta" style="font-size: 0.75rem; color: var(--text-muted);"></span>
+                <!-- Top Actions Bar -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; background: rgba(15, 23, 42, 0.6); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.75rem;">
+                    <div>
+                        <div id="historyLogMeta" style="font-size: 0.85rem; font-weight: 600; color: #fff;"></div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Timestamped execution events & change history</div>
+                    </div>
+                    <a id="downloadHistoryBtn" href="#" class="btn btn-secondary btn-sm" download>
+                        ⬇️ Download History Log (.txt)
+                    </a>
                 </div>
-                <div class="diff-container" id="historyLogs" style="margin-bottom: 1.5rem; max-height: 230px;"></div>
 
+                <!-- Snapshot History Explorer -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                    <h4 style="font-size: 0.9rem; color: var(--success); margin: 0;">📸 Captured Snapshots History</h4>
+                    <h4 style="font-size: 0.95rem; color: var(--success); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>📸 Captured Snapshot View</span>
+                    </h4>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <label for="snapshotSelect" style="font-size: 0.8rem; color: var(--text-muted);">Select Version:</label>
-                        <select id="snapshotSelect" class="form-control" style="min-height: 32px; padding: 0.25rem 0.5rem; font-size: 0.8rem; width: auto;">
+                        <label for="snapshotSelect" style="font-size: 0.8rem; color: var(--text-muted);">Version:</label>
+                        <select id="snapshotSelect" class="form-control" style="min-height: 34px; padding: 0.25rem 0.65rem; font-size: 0.825rem; width: auto;">
                             <option value="">Latest Captured Snapshot</option>
                         </select>
                     </div>
                 </div>
-                <div class="diff-container" id="historySnapshot" style="max-height: 250px;"></div>
+                <div class="diff-container" id="historySnapshot" style="max-height: 420px;"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('historyModal')">Close</button>

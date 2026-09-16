@@ -363,13 +363,15 @@ document.addEventListener('DOMContentLoaded', () => {
     window.viewHistory = async function(id) {
         currentHistoryMonitorId = id;
         openModal('historyModal');
-        const historyLogs = document.getElementById('historyLogs');
         const historySnapshot = document.getElementById('historySnapshot');
         const historyTitle = document.getElementById('historyModalTitle');
         const snapshotSelect = document.getElementById('snapshotSelect');
         const historyLogMeta = document.getElementById('historyLogMeta');
+        const downloadHistoryBtn = document.getElementById('downloadHistoryBtn');
 
-        historyLogs.textContent = 'Loading history...';
+        if (downloadHistoryBtn) {
+            downloadHistoryBtn.href = `api.php?action=download_history_log&id=${encodeURIComponent(id)}`;
+        }
         historySnapshot.textContent = 'Loading snapshot...';
         if (snapshotSelect) snapshotSelect.innerHTML = '<option value="">Latest Captured Snapshot</option>';
 
@@ -378,7 +380,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.success) {
                 historyTitle.textContent = `History: ${data.monitor?.name || id}`;
-                historyLogs.textContent = data.history_log || 'No history recorded yet.';
                 historySnapshot.textContent = data.current_snapshot || data.latest_snapshot || 'No snapshot captured yet.';
                 
                 if (historyLogMeta) {
@@ -394,10 +395,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     snapshotSelect.innerHTML = opts;
                 }
             } else {
-                historyLogs.textContent = 'Failed to load history: ' + data.error;
+                historySnapshot.textContent = 'Failed to load history: ' + data.error;
             }
         } catch (e) {
-            historyLogs.textContent = 'Network error loading history: ' + e.message;
+            historySnapshot.textContent = 'Network error loading history: ' + e.message;
         }
     };
 

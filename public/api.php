@@ -190,7 +190,19 @@ try {
                 'current_snapshot' => $snapshotContent,
                 'latest_snapshot' => $snapshotContent,
             ]);
-            break;
+        // --- Download History Log Text File ---
+        case 'download_history_log':
+            $id = $_GET['id'] ?? $input['id'] ?? '';
+            if (empty($id)) {
+                throw new \InvalidArgumentException('Monitor ID is required');
+            }
+            $history = Storage::getHistoryLog($id, 2000);
+            $filename = 'monitor_' . $id . '_history_' . date('Ymd_His') . '.log';
+
+            header('Content-Type: text/plain; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            echo $history;
+            exit;
 
         // --- Save Global Settings ---
         case 'save_settings':
