@@ -101,11 +101,18 @@ $builtinTemplates = Fetcher::getAllTemplates();
 $csrfToken = Auth::getCsrfToken();
 
 // Compute active & health counts
-$activeCount = 0;
+$activeMonitors = [];
+$inactiveMonitors = [];
 $changesToday = $stats['checks_by_date'][date('Y-m-d')]['changes'] ?? 0;
-foreach ($monitors as $m) {
-    if (($m['status'] ?? 'active') === 'active') $activeCount++;
+foreach ($monitors as $id => $m) {
+    if (($m['status'] ?? 'active') === 'active') {
+        $activeMonitors[$id] = $m;
+    } else {
+        $inactiveMonitors[$id] = $m;
+    }
 }
+$activeCount = count($activeMonitors);
+$inactiveCount = count($inactiveMonitors);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -136,7 +143,8 @@ foreach ($monitors as $m) {
 
         <!-- Navigation Tabs -->
         <nav class="tabs-nav">
-            <button class="tab-btn active" data-tab="tab-monitors">🎯 Monitors (<?= count($monitors) ?>)</button>
+            <button class="tab-btn active" data-tab="tab-active-monitors">🎯 Active Targets (<?= $activeCount ?>)</button>
+            <button class="tab-btn" data-tab="tab-inactive-monitors">⏸️ Inactive / Paused (<?= $inactiveCount ?>)</button>
             <button class="tab-btn" data-tab="tab-analytics">📊 Analytics</button>
             <button class="tab-btn" data-tab="tab-logs">📋 Error & System Logs</button>
             <button class="tab-btn" data-tab="tab-templates">🛡️ Request Profiles</button>
@@ -167,12 +175,12 @@ foreach ($monitors as $m) {
             </div>
         </div>
 
-        <!-- TAB 1: Monitors List -->
-        <div class="tab-pane" id="tab-monitors">
+        <!-- TAB 1: Active Monitors List -->
+        <div class="tab-pane" id="tab-active-monitors">
             <div class="panel">
                 <div class="panel-header">
-                    <div class="panel-title">Active Monitored Targets</div>
-                    <span style="font-size: 0.85rem; color: var(--text-muted);">Auto-refreshed on manual or cron check</span>
+                    <div class="panel-title">Active Monitored Targets (<?= $activeCount ?>)</div>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">Scheduled & running checks</span>
                 </div>
 
                 <div class="table-responsive">
@@ -189,24 +197,20 @@ foreach ($monitors as $m) {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($monitors)): ?>
+                            <?php if (empty($activeMonitors)): ?>
                                 <tr>
                                     <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
-                                        No targets configured yet. Click <strong>"+ Add Target"</strong> above to start monitoring!
+                                        No active targets. Click <strong>"+ Add Target"</strong> above or resume a paused monitor from the Inactive tab.
                                     </td>
                                 </tr>
                             <?php else: ?>
-                                <?php foreach ($monitors as $id => $m): ?>
+                                <?php foreach ($activeMonitors as $id => $m): ?>
                                     <tr>
                                         <td>
-                                            <?php if (($m['status'] ?? 'active') === 'active'): ?>
-                                                <?php if (!empty($m['last_error'])): ?>
-                                                    <span class="badge badge-error">Error</span>
-                                                <?php else: ?>
-                                                    <span class="badge badge-active">Active</span>
-                                                <?php endif; ?>
+                                            <?php if (!empty($m['last_error'])): ?>
+                                                <span class="badge badge-error">Error</span>
                                             <?php else: ?>
-                                                <span class="badge badge-paused">Paused</span>
+                                                <span class="badge badge-active">Active</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
@@ -247,11 +251,94 @@ foreach ($monitors as $m) {
                                             <?php endif; ?>
                                         </td>
                                         <td style="text-align: right; white-space: nowrap;">
-                                            <?php if (($m['status'] ?? 'active') === 'active'): ?>
-                                                <button class="btn btn-secondary btn-sm" onclick="toggleStatus('<?= $id ?>', this)" title="Pause / Disable Monitor" style="color: var(--warning);">⏸️</button>
-                                            <?php else: ?>
-                                                <button class="btn btn-secondary btn-sm" onclick="toggleStatus('<?= $id ?>', this)" title="Resume / Enable Monitor" style="color: var(--success);">▶️</button>
+                                            <button class="btn btn-secondary btn-sm" onclick="toggleStatus('<?= $id ?>', this)" title="Pause / Disable Monitor" style="color: var(--warning);">⏸️</button>
+                                            <button class="btn btn-secondary btn-sm" onclick="runCheck('<?= $id ?>', this)" title="Run Check Now">⚡</button>
+                                            <button class="btn btn-secondary btn-sm" onclick="viewHistory('<?= $id ?>')" title="View History & Snapshots">📜</button>
+                                            <button class="btn btn-secondary btn-sm" onclick='editMonitor(<?= json_encode($m, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' title="Edit Monitor">✏️</button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteMonitor('<?= $id ?>', '<?= htmlspecialchars(addslashes($m['name'])) ?>')" title="Delete">🗑️</button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Inactive / Paused Monitors List -->
+        <div class="tab-pane" id="tab-inactive-monitors" style="display: none;">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Inactive / Paused Targets (<?= $inactiveCount ?>)</div>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">Skipped during automated cron runs</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Target / Name</th>
+                                <th>Type & Selector</th>
+                                <th>Profile</th>
+                                <th>Last Check</th>
+                                <th>Changes</th>
+                                <th style="text-align: right;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($inactiveMonitors)): ?>
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+                                        No inactive or paused monitors.
+                                    </td>
+                                </tr>
+                            <?php else: ?>
+                                <?php foreach ($inactiveMonitors as $id => $m): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="badge badge-paused">Paused</span>
+                                        </td>
+                                        <td>
+                                            <strong><?= htmlspecialchars($m['name']) ?></strong>
+                                            <div style="font-size: 0.775rem; color: var(--text-muted); word-break: break-all;">
+                                                <a href="<?= htmlspecialchars($m['url']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($m['url']) ?></a>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-type"><?= htmlspecialchars($m['type'] ?? 'html_full') ?></span>
+                                            <?php if (!empty($m['selector'])): ?>
+                                                <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                                    <?= htmlspecialchars(substr($m['selector'], 0, 30)) ?><?= strlen($m['selector']) > 30 ? '...' : '' ?>
+                                                </div>
                                             <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <span style="font-size: 0.8rem; color: var(--text-secondary);">
+                                                <?= htmlspecialchars($builtinTemplates[$m['browser_template'] ?? 'chrome_mac']['name'] ?? $m['browser_template']) ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <?php if (!empty($m['last_check_at'])): ?>
+                                                <div style="font-size: 0.85rem;"><?= date('M d, H:i', strtotime($m['last_check_at'])) ?></div>
+                                                <div style="font-size: 0.75rem; color: var(--text-muted);">
+                                                    HTTP <?= $m['last_status_code'] ?? '-' ?>
+                                                </div>
+                                            <?php else: ?>
+                                                <span style="color: var(--text-muted);">Never</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <strong><?= (int)($m['change_count'] ?? 0) ?></strong>
+                                            <?php if (!empty($m['last_change_at'])): ?>
+                                                <div style="font-size: 0.75rem; color: var(--warning);">
+                                                    <?= date('M d, H:i', strtotime($m['last_change_at'])) ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td style="text-align: right; white-space: nowrap;">
+                                            <button class="btn btn-secondary btn-sm" onclick="toggleStatus('<?= $id ?>', this)" title="Resume / Enable Monitor" style="color: var(--success);">▶️ Resume</button>
                                             <button class="btn btn-secondary btn-sm" onclick="runCheck('<?= $id ?>', this)" title="Run Check Now">⚡</button>
                                             <button class="btn btn-secondary btn-sm" onclick="viewHistory('<?= $id ?>')" title="View History & Snapshots">📜</button>
                                             <button class="btn btn-secondary btn-sm" onclick='editMonitor(<?= json_encode($m, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' title="Edit Monitor">✏️</button>
