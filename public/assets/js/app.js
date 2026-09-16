@@ -21,6 +21,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Sub-Tab Navigation (e.g. Active vs Inactive monitors) ---
+    const subtabButtons = document.querySelectorAll('.subtab-btn');
+    subtabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.getAttribute('data-subtab');
+            const container = btn.closest('.panel') || document;
+            container.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+            container.querySelectorAll('.subtab-pane').forEach(p => p.style.display = 'none');
+
+            btn.classList.add('active');
+            const targetPane = document.getElementById(targetId);
+            if (targetPane) targetPane.style.display = 'block';
+        });
+    });
+
     // --- Toast Notifications ---
     window.showToast = function(message, type = 'info') {
         let container = document.querySelector('.toast-container');

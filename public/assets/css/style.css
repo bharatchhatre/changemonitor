@@ -165,6 +165,43 @@ button, input, select, textarea {
     box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
 }
 
+/* Sub-Tab Navigation (Pills inside panels) */
+.subtabs-nav {
+    display: inline-flex;
+    gap: 0.35rem;
+    background: rgba(15, 23, 42, 0.7);
+    padding: 0.3rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.subtab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s ease;
+    min-height: 34px;
+}
+
+.subtab-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.subtab-btn.active {
+    background: var(--accent-primary);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+}
+
 /* Stats Analytics Cards */
 .stats-grid {
     display: grid;

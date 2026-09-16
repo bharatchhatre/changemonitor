@@ -25,5 +25,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Replaced inline text history log box with a direct `.txt` download button and expanded snapshot viewer.
 - Fixed missing `break` in `get_history` API endpoint preventing corrupted JSON output.
 - Adjusted `gov_portal` browser profile headers and disabled `CURLOPT_AUTOREFERER` to eliminate Azure FrontDoor WAF 403 Forbidden / 400 Bad Request responses.
-- Separated active and paused/inactive monitors into dedicated dashboard tabs with real-time target counts.
+- Added `🎯 Active` and `⏸️ Inactive` sub-tabs inside the main Monitors tab with real-time target counts.
 
