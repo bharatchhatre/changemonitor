@@ -59,13 +59,6 @@ function cm_env(string $key, mixed $default = null): mixed {
     };
 }
 
-// Global Timezone Initialization (Default Asia/Kolkata - IST)
-$appTimezone = cm_env('APP_TIMEZONE', 'Asia/Kolkata');
-if (!@date_default_timezone_set($appTimezone)) {
-    date_default_timezone_set('Asia/Kolkata');
-}
-
-
 // Directory constants
 $customDataPath = cm_env('DATA_PATH');
 if ($customDataPath && !str_starts_with($customDataPath, '/')) {
@@ -78,6 +71,19 @@ if ($customDataPath && !str_starts_with($customDataPath, '/')) {
 
 define('CM_HISTORY_DIR', CM_DATA_DIR . '/history');
 define('CM_LOGS_DIR', CM_DATA_DIR . '/logs');
+
+// Global Timezone Initialization (Default Asia/Kolkata - IST or from settings.json)
+$appTimezone = cm_env('APP_TIMEZONE', 'Asia/Kolkata');
+$settingsFile = CM_DATA_DIR . '/settings.json';
+if (file_exists($settingsFile)) {
+    $rawSettings = @json_decode(file_get_contents($settingsFile), true);
+    if (!empty($rawSettings['app_timezone'])) {
+        $appTimezone = $rawSettings['app_timezone'];
+    }
+}
+if (!@date_default_timezone_set($appTimezone)) {
+    date_default_timezone_set('Asia/Kolkata');
+}
 
 // Ensure directories exist
 if (!is_dir(CM_DATA_DIR)) {
