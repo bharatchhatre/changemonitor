@@ -190,6 +190,8 @@ try {
                 'current_snapshot' => $snapshotContent,
                 'latest_snapshot' => $snapshotContent,
             ]);
+            break;
+
         // --- Download History Log Text File ---
         case 'download_history_log':
             $id = $_GET['id'] ?? $input['id'] ?? '';
