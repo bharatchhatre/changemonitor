@@ -591,6 +591,155 @@ textarea.form-control {
     to { transform: translateX(0); opacity: 1; }
 }
 
+/* Bulk Action Floating Bar */
+.bulk-action-bar {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(120%);
+    background: rgba(17, 24, 39, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(2, 132, 199, 0.25);
+    border-radius: var(--radius-lg);
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    z-index: 1000;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    opacity: 0;
+    pointer-events: none;
+    max-width: calc(100vw - 2rem);
+    flex-wrap: wrap;
+}
+
+.bulk-action-bar.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.bulk-selected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #fff;
+    background: rgba(2, 132, 199, 0.25);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-md);
+}
+
+.bulk-btn-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Custom Checkbox in Table */
+.th-checkbox, .td-checkbox {
+    width: 44px;
+    min-width: 44px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 0.5rem !important;
+}
+
+.custom-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    cursor: pointer;
+    margin: 0;
+    accent-color: var(--accent-primary);
+}
+
+.data-table tbody tr.row-selected {
+    background: rgba(2, 132, 199, 0.12) !important;
+    border-left: 3px solid var(--info);
+}
+
+/* Bulk Add Format Helper Box */
+.format-helper-box {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.825rem;
+    color: var(--text-secondary);
+}
+
+.format-helper-box code {
+    font-family: var(--font-mono);
+    background: #000;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    color: #a5f3fc;
+}
+
+/* Group / Category Filter Pills */
+.group-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+    margin-bottom: 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.group-pill {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-lg);
+    font-size: 0.825rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 32px;
+}
+
+.group-pill:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.group-pill.active {
+    background: rgba(2, 132, 199, 0.25);
+    border-color: var(--info);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.badge-group {
+    background: rgba(139, 92, 246, 0.15);
+    color: #c4b5fd;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 600;
+}
+
 /* Responsive Breakpoints */
 @media (max-width: 768px) {
     .app-header {
@@ -600,7 +749,8 @@ textarea.form-control {
     }
     .nav-actions {
         width: 100%;
-        justify-content: space-between;
+        justify-content: flex-start;
+        flex-wrap: wrap;
     }
     .stats-grid {
         grid-template-columns: 1fr;
@@ -608,4 +758,15 @@ textarea.form-control {
     .modal-dialog {
         max-height: 95vh;
     }
+    .bulk-action-bar {
+        bottom: 1rem;
+        width: calc(100% - 2rem);
+        justify-content: center;
+        padding: 0.65rem 0.75rem;
+    }
+    .bulk-btn-group {
+        justify-content: center;
+        width: 100%;
+    }
 }
+

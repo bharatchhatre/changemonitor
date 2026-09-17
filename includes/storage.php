@@ -10,6 +10,7 @@ require_once __DIR__ . '/config.php';
 
 class Storage {
     private static string $monitorsFile = CM_DATA_DIR . '/monitors.json';
+    private static string $trashFile = CM_DATA_DIR . '/trash.json';
     private static string $settingsFile = CM_DATA_DIR . '/settings.json';
     private static string $statsFile = CM_DATA_DIR . '/stats.json';
     private static string $authFile = CM_DATA_DIR . '/auth.json';
@@ -78,6 +79,8 @@ class Storage {
             $monitor['check_count'] = 0;
             $monitor['change_count'] = 0;
             $monitor['status'] = 'active'; // active, paused
+            $groupVal = trim($monitor['group'] ?? '');
+            $monitor['group'] = ($groupVal === '' || strcasecmp($groupVal, 'ungrouped') === 0) ? 'Ungrouped' : $groupVal;
             $monitor['last_status_code'] = null;
             $monitor['last_check_at'] = null;
             $monitor['last_change_at'] = null;
@@ -86,6 +89,10 @@ class Storage {
             $monitor['last_error'] = null;
         } else {
             $existing = $monitors[$monitor['id']] ?? [];
+            if (isset($monitor['group'])) {
+                $groupVal = trim((string)$monitor['group']);
+                $monitor['group'] = ($groupVal === '' || strcasecmp($groupVal, 'ungrouped') === 0) ? 'Ungrouped' : $groupVal;
+            }
             $monitor = array_merge($existing, $monitor);
             $monitor['updated_at'] = date('c');
         }
@@ -95,14 +102,275 @@ class Storage {
         return $monitor['id'];
     }
 
+    public static function saveMonitorsBulk(array $monitorsList): array {
+        $monitors = self::getMonitors();
+        $savedIds = [];
+        $now = date('c');
+
+        foreach ($monitorsList as $monitor) {
+            if (empty($monitor['url'])) {
+                continue;
+            }
+            $groupVal = trim($monitor['group'] ?? '');
+            $normalizedGroup = ($groupVal === '' || strcasecmp($groupVal, 'ungrouped') === 0) ? 'Ungrouped' : $groupVal;
+
+            if (empty($monitor['id'])) {
+                $id = 'mon_' . bin2hex(random_bytes(6));
+                $monitor['id'] = $id;
+                $monitor['created_at'] = $now;
+                $monitor['check_count'] = 0;
+                $monitor['change_count'] = 0;
+                $monitor['status'] = $monitor['status'] ?? 'active';
+                $monitor['group'] = $normalizedGroup;
+                $monitor['last_status_code'] = null;
+                $monitor['last_check_at'] = null;
+                $monitor['last_change_at'] = null;
+                $monitor['last_snapshot'] = '';
+                $monitor['last_hash'] = '';
+                $monitor['last_error'] = null;
+            } else {
+                $id = $monitor['id'];
+                $existing = $monitors[$id] ?? [];
+                $monitor['group'] = $normalizedGroup;
+                $monitor = array_merge($existing, $monitor);
+                $monitor['updated_at'] = $now;
+            }
+
+            $monitors[$id] = $monitor;
+            $savedIds[] = $id;
+        }
+
+        if (!empty($savedIds)) {
+            self::writeJson(self::$monitorsFile, $monitors);
+        }
+
+        return $savedIds;
+    }
+
+    public static function getGroups(): array {
+        $monitors = self::getMonitors();
+        $groups = [];
+        foreach ($monitors as $m) {
+            $rawGrp = trim($m['group'] ?? '');
+            $grp = ($rawGrp === '' || strcasecmp($rawGrp, 'ungrouped') === 0) ? 'Ungrouped' : $rawGrp;
+            $groups[$grp] = ($groups[$grp] ?? 0) + 1;
+        }
+        ksort($groups, SORT_NATURAL | SORT_FLAG_CASE);
+        return $groups;
+    }
+
+    public static function bulkAssignGroup(array $ids, string $group): int {
+        $rawGroup = trim($group);
+        $group = ($rawGroup === '' || strcasecmp($rawGroup, 'ungrouped') === 0) ? 'Ungrouped' : $rawGroup;
+        $monitors = self::getMonitors();
+        $updated = 0;
+        $now = date('c');
+
+        foreach ($ids as $id) {
+            if (isset($monitors[$id])) {
+                $monitors[$id]['group'] = $group;
+                $monitors[$id]['updated_at'] = $now;
+                $updated++;
+            }
+        }
+
+        if ($updated > 0) {
+            self::writeJson(self::$monitorsFile, $monitors);
+        }
+        return $updated;
+    }
+
+    /**
+     * Bulk Edit multiple monitor fields simultaneously
+     */
+    public static function bulkEditMonitors(array $ids, array $fields): int {
+        $monitors = self::getMonitors();
+        $updated = 0;
+        $now = date('c');
+
+        foreach ($ids as $id) {
+            if (!isset($monitors[$id])) {
+                continue;
+            }
+
+            if (isset($fields['group'])) {
+                $rawGroup = trim((string)$fields['group']);
+                $monitors[$id]['group'] = ($rawGroup === '' || strcasecmp($rawGroup, 'ungrouped') === 0) ? 'Ungrouped' : $rawGroup;
+            }
+            if (isset($fields['status']) && in_array($fields['status'], ['active', 'paused'], true)) {
+                $monitors[$id]['status'] = $fields['status'];
+            }
+            if (isset($fields['interval_mins'])) {
+                $monitors[$id]['interval_mins'] = max(1, (int)$fields['interval_mins']);
+            }
+            if (isset($fields['browser_template']) && !empty($fields['browser_template'])) {
+                $monitors[$id]['browser_template'] = (string)$fields['browser_template'];
+            }
+            if (isset($fields['type']) && !empty($fields['type'])) {
+                $monitors[$id]['type'] = (string)$fields['type'];
+            }
+            if (isset($fields['timeout'])) {
+                $monitors[$id]['timeout'] = max(5, min(60, (int)$fields['timeout']));
+            }
+            if (isset($fields['strip_tags'])) {
+                $monitors[$id]['strip_tags'] = !empty($fields['strip_tags']);
+            }
+            if (isset($fields['notify_on_change'])) {
+                $monitors[$id]['notify_on_change'] = !empty($fields['notify_on_change']);
+            }
+            if (isset($fields['notify_on_error'])) {
+                $monitors[$id]['notify_on_error'] = !empty($fields['notify_on_error']);
+            }
+            if (isset($fields['peak_schedule_enabled'])) {
+                $monitors[$id]['peak_schedule_enabled'] = !empty($fields['peak_schedule_enabled']);
+            }
+            if (isset($fields['peak_start_hour'])) {
+                $monitors[$id]['peak_start_hour'] = max(0, min(23, (int)$fields['peak_start_hour']));
+            }
+            if (isset($fields['peak_end_hour'])) {
+                $monitors[$id]['peak_end_hour'] = max(0, min(23, (int)$fields['peak_end_hour']));
+            }
+            if (isset($fields['peak_interval_mins'])) {
+                $monitors[$id]['peak_interval_mins'] = max(1, (int)$fields['peak_interval_mins']);
+            }
+            if (isset($fields['offpeak_interval_mins'])) {
+                $monitors[$id]['offpeak_interval_mins'] = max(1, (int)$fields['offpeak_interval_mins']);
+            }
+
+            $monitors[$id]['updated_at'] = $now;
+            $updated++;
+        }
+
+        if ($updated > 0) {
+            self::writeJson(self::$monitorsFile, $monitors);
+        }
+        return $updated;
+    }
+
+    public static function bulkUpdateStatus(array $ids, string $status): int {
+        if (!in_array($status, ['active', 'paused'], true)) {
+            return 0;
+        }
+        $monitors = self::getMonitors();
+        $updated = 0;
+        $now = date('c');
+
+        foreach ($ids as $id) {
+            if (isset($monitors[$id])) {
+                $monitors[$id]['status'] = $status;
+                $monitors[$id]['updated_at'] = $now;
+                $updated++;
+            }
+        }
+
+        if ($updated > 0) {
+            self::writeJson(self::$monitorsFile, $monitors);
+        }
+        return $updated;
+    }
+
+    // --- Soft Delete & Trash / Restore Functionality ---
+
+    public static function getTrash(): array {
+        return self::readJson(self::$trashFile, []);
+    }
+
     public static function deleteMonitor(string $id): bool {
         $monitors = self::getMonitors();
         if (isset($monitors[$id])) {
+            $deletedMonitor = $monitors[$id];
+            $deletedMonitor['deleted_at'] = date('c');
             unset($monitors[$id]);
+            self::writeJson(self::$monitorsFile, $monitors);
+
+            // Move to trash
+            $trash = self::getTrash();
+            $trash[$id] = $deletedMonitor;
+            self::writeJson(self::$trashFile, $trash);
+            return true;
+        }
+        return false;
+    }
+
+    public static function bulkDeleteMonitors(array $ids): int {
+        $monitors = self::getMonitors();
+        $trash = self::getTrash();
+        $deleted = 0;
+        $now = date('c');
+
+        foreach ($ids as $id) {
+            if (isset($monitors[$id])) {
+                $item = $monitors[$id];
+                $item['deleted_at'] = $now;
+                $trash[$id] = $item;
+                unset($monitors[$id]);
+                $deleted++;
+            }
+        }
+
+        if ($deleted > 0) {
+            self::writeJson(self::$monitorsFile, $monitors);
+            self::writeJson(self::$trashFile, $trash);
+        }
+        return $deleted;
+    }
+
+    public static function restoreMonitor(string $id): bool {
+        $trash = self::getTrash();
+        if (isset($trash[$id])) {
+            $item = $trash[$id];
+            unset($item['deleted_at']);
+            $item['updated_at'] = date('c');
+            unset($trash[$id]);
+            self::writeJson(self::$trashFile, $trash);
+
+            $monitors = self::getMonitors();
+            $monitors[$id] = $item;
             self::writeJson(self::$monitorsFile, $monitors);
             return true;
         }
         return false;
+    }
+
+    public static function bulkRestoreMonitors(array $ids): int {
+        $trash = self::getTrash();
+        $monitors = self::getMonitors();
+        $restored = 0;
+        $now = date('c');
+
+        foreach ($ids as $id) {
+            if (isset($trash[$id])) {
+                $item = $trash[$id];
+                unset($item['deleted_at']);
+                $item['updated_at'] = $now;
+                $monitors[$id] = $item;
+                unset($trash[$id]);
+                $restored++;
+            }
+        }
+
+        if ($restored > 0) {
+            self::writeJson(self::$trashFile, $trash);
+            self::writeJson(self::$monitorsFile, $monitors);
+        }
+        return $restored;
+    }
+
+    public static function purgeDeletedMonitor(string $id): bool {
+        $trash = self::getTrash();
+        if (isset($trash[$id])) {
+            unset($trash[$id]);
+            self::writeJson(self::$trashFile, $trash);
+            return true;
+        }
+        return false;
+    }
+
+    public static function emptyTrash(): int {
+        $trash = self::getTrash();
+        $count = count($trash);
+        self::writeJson(self::$trashFile, []);
+        return $count;
     }
 
     // --- Settings & Presets ---

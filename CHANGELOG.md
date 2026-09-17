@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-09-18]
+### Added
+- Integrated **🗑️ Trash / Deleted** sub-tab directly beside Active and Inactive sub-tabs within the Monitors panel.
+- Support for batch updating **⚡ Peak / Off-Peak Request Frequency** in the Bulk Edit modal and `Storage::bulkEditMonitors`.
+- Tab and sub-tab state persistence using `sessionStorage` and URL hash ensuring active tab/sub-tab is preserved across form submits and reloads.
+- Dedicated **Trash / Deleted Monitors** with soft-delete safeguards, single and bulk restore (`♻️ Restore Selected`), and permanent purge (`🔥 Empty Trash`).
+- Explicit **Ungrouped** category filter pill and full group visibility ensuring all custom groups and unassigned monitors are displayed without omission.
+- Comprehensive **✏️ Bulk Edit** modal and API (`bulk_edit`) to batch update Group, Check Interval, Request Profile, Extraction Mode, Timeout, Peak Schedules, and Notification flags across selected targets.
+- Monitor grouping and category tagging system (e.g. E-Commerce, Competitors, Infrastructure) with group badges in monitor tables.
+- Interactive category filter bar with target counts allowing instant client-side group filtering on active/inactive tables.
+- Group input with datalist auto-suggestions in Add/Edit Monitor and Bulk Add modals.
+- Bulk `📁 Set Group` action in floating toolbar to reassign multiple selected monitors to any group in batch.
+- Bulk add targets modal allowing multi-line URL or Name/URL parsing with shared default profile, intervals, and immediate baseline checks.
+- Checkbox selection in monitors table (row checkboxes and Select All master checkbox for active and inactive sub-tabs).
+- Floating bulk actions toolbar with badge counter and one-click Bulk Activate, Bulk Pause, Bulk Run Now, and Bulk Delete actions.
+- Backend bulk storage operations (`saveMonitorsBulk`, `bulkUpdateStatus`, `bulkDeleteMonitors`, `bulkAssignGroup`, `bulkEditMonitors`, `restoreMonitor`, `bulkRestoreMonitors`, `purgeDeletedMonitor`, `emptyTrash`) and API endpoints (`bulk_add_monitors`, `bulk_status`, `bulk_delete`, `bulk_run_check`, `bulk_set_group`, `bulk_edit`, `get_trash`, `restore_monitor`, `bulk_restore`, `purge_trash`, `empty_trash`).
+
+### Fixed
+- Fixed `ReferenceError: Cannot access 'bulkSelectedCount' before initialization` by moving core selection and group filtering functions before sub-tab initialization.
+- Fixed category/group pill clicks by implementing event delegation on the group filter bar.
+- Implemented dynamic sub-tab-aware group counts so group filter pills reflect active monitors on the Active sub-tab and inactive monitors on the Inactive sub-tab.
+- Fixed bug where deleting a few filtered or selected monitors resulted in deleting all monitors due to global unconstrained checkbox querying and master checkbox targeting hidden group rows.
+- Fixed cross-subtab checkbox bleeding when switching between Active, Inactive, and Trash sub-tabs.
+- Fixed page reset to default tab upon saving or editing monitors, settings, and bulk operations.
+
 ## [2026-09-16]
 ### Added
 - Core PHP engine and storage with flock locks for Bluehost shared hosting.

@@ -96,16 +96,25 @@ if (!Auth::check()) {
 
 // Authenticated Admin Dashboard
 $monitors = Storage::getMonitors();
+$trash = Storage::getTrash();
 $settings = Storage::getSettings();
 $stats = Storage::getStats();
 $builtinTemplates = Fetcher::getAllTemplates();
 $csrfToken = Auth::getCsrfToken();
 
-// Compute active & health counts
+// Compute active & health counts and groups
 $activeMonitors = [];
 $inactiveMonitors = [];
 $changesToday = $stats['checks_by_date'][date('Y-m-d')]['changes'] ?? 0;
+$groups = Storage::getGroups();
+
+// Calculate ungrouped count
+$ungroupedCount = 0;
 foreach ($monitors as $id => $m) {
+    $rawGrp = trim($m['group'] ?? '');
+    if ($rawGrp === '' || strcasecmp($rawGrp, 'ungrouped') === 0) {
+        $ungroupedCount++;
+    }
     if (($m['status'] ?? 'active') === 'active') {
         $activeMonitors[$id] = $m;
     } else {
@@ -114,6 +123,7 @@ foreach ($monitors as $id => $m) {
 }
 $activeCount = count($activeMonitors);
 $inactiveCount = count($inactiveMonitors);
+$trashCount = count($trash);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -137,6 +147,7 @@ $inactiveCount = count($inactiveMonitors);
             </div>
             <div class="nav-actions">
                 <button class="btn btn-secondary btn-sm" id="runAllBtn">▶ Run All Checks</button>
+                <button class="btn btn-secondary btn-sm" id="bulkAddBtn">➕ Bulk Add</button>
                 <button class="btn btn-primary btn-sm" id="addMonitorBtn">+ Add Target</button>
                 <a href="?route=logout" class="btn btn-secondary btn-sm" title="Logout">Logout</a>
             </div>
@@ -175,7 +186,23 @@ $inactiveCount = count($inactiveMonitors);
             </div>
         </div>
 
-        <!-- TAB 1: Monitors Panel (with Active / Inactive Sub-Tabs) -->
+        <!-- Floating Bulk Actions Toolbar -->
+        <div class="bulk-action-bar" id="bulkActionBar">
+            <div class="bulk-selected-badge">
+                <span id="bulkSelectedCount">0</span> selected
+            </div>
+            <div class="bulk-btn-group">
+                <button type="button" class="btn btn-primary btn-sm" id="bulkEditBtn" title="Bulk edit settings for selected">✏️ Bulk Edit</button>
+                <button type="button" class="btn btn-success btn-sm" id="bulkActivateBtn" title="Set selected to Active">▶️ Activate</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="bulkPauseBtn" title="Set selected to Paused">⏸️ Pause</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="bulkGroupBtn" title="Assign selected to Group">📁 Set Group</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="bulkRunBtn" title="Execute checks for selected">⚡ Run Now</button>
+                <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn" title="Move selected to Trash">🗑️ Delete</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="bulkDeselectBtn" style="padding: 0.35rem 0.6rem;" title="Clear selection">&times; Clear</button>
+            </div>
+        </div>
+
+        <!-- TAB 1: Monitors Panel (with Active / Inactive / Trash Sub-Tabs & Group Filter) -->
         <div class="tab-pane" id="tab-monitors">
             <div class="panel">
                 <div class="panel-header" style="flex-wrap: wrap; gap: 0.75rem;">
@@ -184,7 +211,7 @@ $inactiveCount = count($inactiveMonitors);
                         <span style="font-size: 0.85rem; color: var(--text-muted);">Auto-refreshed on manual or cron check</span>
                     </div>
 
-                    <!-- Sub-tabs for Active vs Inactive -->
+                    <!-- Sub-tabs for Active vs Inactive vs Trash -->
                     <div class="subtabs-nav">
                         <button type="button" class="subtab-btn active" data-subtab="subtab-active">
                             🎯 Active (<?= $activeCount ?>)
@@ -192,7 +219,29 @@ $inactiveCount = count($inactiveMonitors);
                         <button type="button" class="subtab-btn" data-subtab="subtab-inactive">
                             ⏸️ Inactive (<?= $inactiveCount ?>)
                         </button>
+                        <button type="button" class="subtab-btn" data-subtab="subtab-trash">
+                            🗑️ Trash / Deleted (<?= $trashCount ?>)
+                        </button>
                     </div>
+                </div>
+
+                <!-- Group / Category Filter Pills -->
+                <div class="group-filter-bar" id="groupFilterBar">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.25rem;">
+                        📁 Group:
+                    </span>
+                    <button type="button" class="group-pill active" data-group="all">
+                        All (<span class="group-count" data-count-group="all"><?= $activeCount ?></span>)
+                    </button>
+                    <button type="button" class="group-pill" data-group="ungrouped">
+                        Ungrouped (<span class="group-count" data-count-group="ungrouped">0</span>)
+                    </button>
+                    <?php foreach ($groups as $grpName => $grpCount): ?>
+                        <?php if (strcasecmp($grpName, 'ungrouped') === 0) continue; ?>
+                        <button type="button" class="group-pill" data-group="<?= htmlspecialchars($grpName) ?>">
+                            <?= htmlspecialchars($grpName) ?> (<span class="group-count" data-count-group="<?= htmlspecialchars($grpName) ?>">0</span>)
+                        </button>
+                    <?php endforeach; ?>
                 </div>
 
                 <!-- Sub-Tab Pane: Active Monitors -->
@@ -201,8 +250,12 @@ $inactiveCount = count($inactiveMonitors);
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th class="th-checkbox">
+                                        <input type="checkbox" class="custom-checkbox select-all-checkbox" data-target="active" title="Select all active targets">
+                                    </th>
                                     <th>Status</th>
                                     <th>Target / Name</th>
+                                    <th>Group</th>
                                     <th>Type & Selector</th>
                                     <th>Profile</th>
                                     <th>Last Check</th>
@@ -213,9 +266,9 @@ $inactiveCount = count($inactiveMonitors);
                             </thead>
                             <tbody>
                                 <?php if (empty($activeMonitors)): ?>
-                                    <tr>
-                                        <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
-                                            No active targets. Click <strong>"+ Add Target"</strong> above or resume a paused monitor from the Inactive sub-tab.
+                                    <tr class="empty-state-row">
+                                        <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+                                            No active targets. Click <strong>"+ Add Target"</strong> or <strong>"➕ Bulk Add"</strong> above or resume a paused monitor from the Inactive sub-tab.
                                         </td>
                                     </tr>
                                 <?php else: ?>
@@ -225,8 +278,13 @@ $inactiveCount = count($inactiveMonitors);
                                         $lastCheckTs = !empty($m['last_check_at']) ? strtotime($m['last_check_at']) : 0;
                                         $nextCheckTs = $lastCheckTs > 0 ? ($lastCheckTs + ($intervalMins * 60)) : time();
                                         $isOverdue = time() >= $nextCheckTs;
+                                        $rawGrp = trim($m['group'] ?? '');
+                                        $grp = ($rawGrp === '' || strcasecmp($rawGrp, 'ungrouped') === 0) ? 'Ungrouped' : $rawGrp;
                                         ?>
-                                        <tr>
+                                        <tr data-id="<?= $id ?>" data-group="<?= htmlspecialchars($grp) ?>" class="monitor-row">
+                                            <td class="td-checkbox">
+                                                <input type="checkbox" class="custom-checkbox monitor-checkbox" value="<?= $id ?>" data-status="active" aria-label="Select monitor <?= htmlspecialchars($m['name']) ?>">
+                                            </td>
                                             <td>
                                                 <?php if (!empty($m['last_error'])): ?>
                                                     <span class="badge badge-error">Error</span>
@@ -239,6 +297,9 @@ $inactiveCount = count($inactiveMonitors);
                                                 <div style="font-size: 0.775rem; color: var(--text-muted); word-break: break-all;">
                                                     <a href="<?= htmlspecialchars($m['url']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($m['url']) ?></a>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-group" title="Category Group">📁 <?= htmlspecialchars($grp) ?></span>
                                             </td>
                                             <td>
                                                 <span class="badge badge-type"><?= htmlspecialchars($m['type'] ?? 'html_full') ?></span>
@@ -300,8 +361,12 @@ $inactiveCount = count($inactiveMonitors);
                         <table class="data-table">
                             <thead>
                                 <tr>
+                                    <th class="th-checkbox">
+                                        <input type="checkbox" class="custom-checkbox select-all-checkbox" data-target="inactive" title="Select all inactive targets">
+                                    </th>
                                     <th>Status</th>
                                     <th>Target / Name</th>
+                                    <th>Group</th>
                                     <th>Type & Selector</th>
                                     <th>Profile</th>
                                     <th>Last Check</th>
@@ -312,14 +377,21 @@ $inactiveCount = count($inactiveMonitors);
                             </thead>
                             <tbody>
                                 <?php if (empty($inactiveMonitors)): ?>
-                                    <tr>
-                                        <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+                                    <tr class="empty-state-row">
+                                        <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
                                             No inactive or paused monitors.
                                         </td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($inactiveMonitors as $id => $m): ?>
-                                        <tr>
+                                        <?php
+                                        $rawGrp = trim($m['group'] ?? '');
+                                        $grp = ($rawGrp === '' || strcasecmp($rawGrp, 'ungrouped') === 0) ? 'Ungrouped' : $rawGrp;
+                                        ?>
+                                        <tr data-id="<?= $id ?>" data-group="<?= htmlspecialchars($grp) ?>" class="monitor-row">
+                                            <td class="td-checkbox">
+                                                <input type="checkbox" class="custom-checkbox monitor-checkbox" value="<?= $id ?>" data-status="paused" aria-label="Select monitor <?= htmlspecialchars($m['name']) ?>">
+                                            </td>
                                             <td>
                                                 <span class="badge badge-paused">Paused</span>
                                             </td>
@@ -328,6 +400,9 @@ $inactiveCount = count($inactiveMonitors);
                                                 <div style="font-size: 0.775rem; color: var(--text-muted); word-break: break-all;">
                                                     <a href="<?= htmlspecialchars($m['url']) ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($m['url']) ?></a>
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-group" title="Category Group">📁 <?= htmlspecialchars($grp) ?></span>
                                             </td>
                                             <td>
                                                 <span class="badge badge-type"><?= htmlspecialchars($m['type'] ?? 'html_full') ?></span>
@@ -374,6 +449,87 @@ $inactiveCount = count($inactiveMonitors);
                                                 <button class="btn btn-secondary btn-sm" onclick="viewHistory('<?= $id ?>')" title="View History & Snapshots">📜</button>
                                                 <button class="btn btn-secondary btn-sm" onclick='editMonitor(<?= json_encode($m, JSON_HEX_APOS | JSON_HEX_QUOT) ?>)' title="Edit Monitor">✏️</button>
                                                 <button class="btn btn-danger btn-sm" onclick="deleteMonitor('<?= $id ?>', '<?= htmlspecialchars(addslashes($m['name'])) ?>')" title="Delete">🗑️</button>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sub-Tab Pane: Trash / Deleted Monitors -->
+                <div class="subtab-pane" id="subtab-trash" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; padding: 0.75rem 1rem; background: rgba(15, 23, 42, 0.4); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                        <div>
+                            <strong style="color: var(--danger);">🗑️ Deleted Targets Bin</strong>
+                            <span style="font-size: 0.825rem; color: var(--text-muted); margin-left: 0.5rem;">Deleted monitors are kept here. Restore anytime or permanently purge.</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <?php if (!empty($trash)): ?>
+                                <button type="button" class="btn btn-secondary btn-sm" id="bulkRestoreTrashBtn">♻️ Restore Selected</button>
+                                <button type="button" class="btn btn-danger btn-sm" id="emptyTrashBtn">🔥 Empty Trash</button>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th class="th-checkbox">
+                                        <input type="checkbox" class="custom-checkbox select-all-trash-checkbox" title="Select all trash items">
+                                    </th>
+                                    <th>Deleted At</th>
+                                    <th>Target / Name</th>
+                                    <th>Group</th>
+                                    <th>Extraction Type</th>
+                                    <th>Browser Profile</th>
+                                    <th style="text-align: right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trashTableBody">
+                                <?php if (empty($trash)): ?>
+                                    <tr class="empty-state-row">
+                                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+                                            Trash is empty. No deleted monitors found.
+                                        </td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($trash as $id => $m): ?>
+                                        <?php
+                                        $rawGrp = trim($m['group'] ?? '');
+                                        $grp = ($rawGrp === '' || strcasecmp($rawGrp, 'ungrouped') === 0) ? 'Ungrouped' : $rawGrp;
+                                        ?>
+                                        <tr data-id="<?= $id ?>" class="trash-row">
+                                            <td class="td-checkbox">
+                                                <input type="checkbox" class="custom-checkbox trash-checkbox" value="<?= $id ?>" aria-label="Select deleted target <?= htmlspecialchars($m['name'] ?? '') ?>">
+                                            </td>
+                                            <td>
+                                                <div style="font-size: 0.85rem; color: var(--danger); font-weight: 600;">
+                                                    <?= !empty($m['deleted_at']) ? date('M d, Y H:i', strtotime($m['deleted_at'])) : '-' ?>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <strong><?= htmlspecialchars($m['name'] ?? 'Untitled') ?></strong>
+                                                <div style="font-size: 0.775rem; color: var(--text-muted); word-break: break-all;">
+                                                    <a href="<?= htmlspecialchars($m['url'] ?? '') ?>" target="_blank" rel="noopener noreferrer"><?= htmlspecialchars($m['url'] ?? '') ?></a>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-group">📁 <?= htmlspecialchars($grp) ?></span>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-type"><?= htmlspecialchars($m['type'] ?? 'html_full') ?></span>
+                                            </td>
+                                            <td>
+                                                <span style="font-size: 0.8rem; color: var(--text-secondary);">
+                                                    <?= htmlspecialchars($builtinTemplates[$m['browser_template'] ?? 'chrome_mac']['name'] ?? ($m['browser_template'] ?? 'Chrome Mac')) ?>
+                                                </span>
+                                            </td>
+                                            <td style="text-align: right; white-space: nowrap;">
+                                                <button class="btn btn-primary btn-sm" onclick="restoreMonitor('<?= $id ?>', '<?= htmlspecialchars(addslashes($m['name'] ?? '')) ?>')" title="Restore to Active Monitors">♻️ Restore</button>
+                                                <button class="btn btn-danger btn-sm" onclick="purgeDeletedMonitor('<?= $id ?>', '<?= htmlspecialchars(addslashes($m['name'] ?? '')) ?>')" title="Delete Forever">🗑️ Purge</button>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -707,6 +863,15 @@ $inactiveCount = count($inactiveMonitors);
 
                     <div class="form-grid">
                         <div class="form-group">
+                            <label class="form-label" for="monitorGroup">Group / Category</label>
+                            <input type="text" id="monitorGroup" class="form-control" list="existingGroupsList" placeholder="e.g. E-Commerce, Competitors, APIs" value="General">
+                            <datalist id="existingGroupsList">
+                                <?php foreach (array_keys($groups) as $grpName): ?>
+                                    <option value="<?= htmlspecialchars($grpName) ?>">
+                                <?php endforeach; ?>
+                            </datalist>
+                        </div>
+                        <div class="form-group">
                             <label class="form-label" for="monitorType">Extraction Mode</label>
                             <select id="monitorType" class="form-control">
                                 <option value="html_full">Full Page HTML / Text</option>
@@ -717,13 +882,13 @@ $inactiveCount = count($inactiveMonitors);
                                 <option value="headers">HTTP Response Headers</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="monitorSelector">Selector / Path / Pattern</label>
                             <input type="text" id="monitorSelector" class="form-control" placeholder="e.g. //div[@class='price'] or data.status">
                         </div>
-                    </div>
-
-                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="monitorTemplate">Browser Request Profile</label>
                             <select id="monitorTemplate" class="form-control">
@@ -732,6 +897,9 @@ $inactiveCount = count($inactiveMonitors);
                                 <?php endforeach; ?>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="monitorInterval">Standard Interval (Minutes)</label>
                             <input type="number" id="monitorInterval" class="form-control" min="1" value="15">
@@ -817,6 +985,285 @@ $inactiveCount = count($inactiveMonitors);
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" id="testPreviewBtn">Test & Live Preview</button>
                     <button type="submit" class="btn btn-primary">Save Target</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Add Targets Modal -->
+    <div class="modal-backdrop" id="bulkAddModal">
+        <div class="modal-dialog" style="max-width: 720px;">
+            <div class="modal-header">
+                <div class="modal-title">➕ Bulk Add New Targets</div>
+                <button type="button" class="modal-close" onclick="closeModal('bulkAddModal')">&times;</button>
+            </div>
+            <form id="bulkAddForm">
+                <div class="modal-body">
+                    <div class="format-helper-box">
+                        <strong>💡 Format Options (One target per line):</strong><br>
+                        &bull; URL only: <code>https://example.com/product-page</code><br>
+                        &bull; Name and URL: <code>Competitor Pricing, https://example.com/pricing</code><br>
+                        &bull; Pipe delimiter: <code>Login Page | https://example.com/login</code>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                            <label class="form-label" for="bulkMonitorsText" style="margin-bottom: 0;">Target List *</label>
+                            <span id="bulkLineCount" style="font-size: 0.775rem; color: var(--info); font-weight: 600;">0 targets detected</span>
+                        </div>
+                        <textarea id="bulkMonitorsText" class="form-control" rows="8" placeholder="https://example.com/page1&#10;My API, https://api.example.com/v1/health&#10;Store Front | https://store.example.com" style="font-family: var(--font-mono); font-size: 0.85rem;" required></textarea>
+                    </div>
+
+                    <h4 style="font-size: 0.95rem; color: var(--text-primary); margin: 1.25rem 0 0.75rem 0; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border-color);">
+                        ⚙️ Default Configuration for Added Targets
+                    </h4>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="bulkDefaultGroup">Group / Category</label>
+                            <input type="text" id="bulkDefaultGroup" class="form-control" list="existingGroupsList" placeholder="e.g. E-Commerce, APIs" value="General">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="bulkDefaultType">Extraction Mode</label>
+                            <select id="bulkDefaultType" class="form-control">
+                                <option value="html_full">Full Page HTML / Text</option>
+                                <option value="xpath">XPath Expression (DOM Node)</option>
+                                <option value="css">CSS Selector (.price, #content)</option>
+                                <option value="json">JSON API Dot-Path (data.items[0])</option>
+                                <option value="regex">Regex Pattern</option>
+                                <option value="headers">HTTP Response Headers</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="bulkDefaultSelector">Selector / Path (Optional)</label>
+                            <input type="text" id="bulkDefaultSelector" class="form-control" placeholder="Applied to all targets (optional)">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="bulkDefaultTemplate">Browser Request Profile</label>
+                            <select id="bulkDefaultTemplate" class="form-control">
+                                <?php foreach ($builtinTemplates as $key => $tmpl): ?>
+                                    <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($tmpl['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="bulkDefaultInterval">Check Interval (Minutes)</label>
+                            <input type="number" id="bulkDefaultInterval" class="form-control" min="1" value="<?= (int)($settings['default_interval_mins'] ?? 15) ?>">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="bulkDefaultStatus">Initial Status</label>
+                            <select id="bulkDefaultStatus" class="form-control">
+                                <option value="active">Active (Monitored)</option>
+                                <option value="paused">Paused (Inactive)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="bulkDefaultTimeout">Timeout (Seconds)</label>
+                            <input type="number" id="bulkDefaultTimeout" class="form-control" min="5" max="60" value="25">
+                        </div>
+                    </div>
+
+                    <div class="form-grid" style="margin-top: 0.5rem;">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="bulkStripTags" checked>
+                            Strip HTML tags (clean text)
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="bulkRunBaseline" checked>
+                            <strong>⚡ Run initial baseline check immediately</strong>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="bulkNotifyChange" checked>
+                            Notify on Change
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="bulkNotifyError" checked>
+                            Notify on Error
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('bulkAddModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="bulkSubmitBtn">➕ Create Targets</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Move / Assign Group Modal -->
+    <div class="modal-backdrop" id="bulkGroupModal">
+        <div class="modal-dialog" style="max-width: 440px;">
+            <div class="modal-header">
+                <div class="modal-title">📁 Move to Group / Category</div>
+                <button type="button" class="modal-close" onclick="closeModal('bulkGroupModal')">&times;</button>
+            </div>
+            <form id="bulkGroupForm">
+                <div class="modal-body">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Assign <strong id="bulkGroupTargetCount">0</strong> selected monitor(s) to a group:
+                    </p>
+                    <div class="form-group">
+                        <label class="form-label" for="bulkGroupInput">Group Name</label>
+                        <input type="text" id="bulkGroupInput" class="form-control" list="existingGroupsList" placeholder="Enter new group or pick existing..." required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('bulkGroupModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="bulkGroupSubmitBtn">📁 Assign Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bulk Edit Targets Modal -->
+    <div class="modal-backdrop" id="bulkEditModal">
+        <div class="modal-dialog" style="max-width: 680px;">
+            <div class="modal-header">
+                <div class="modal-title">✏️ Bulk Edit Selected Targets</div>
+                <button type="button" class="modal-close" onclick="closeModal('bulkEditModal')">&times;</button>
+            </div>
+            <form id="bulkEditForm">
+                <div class="modal-body">
+                    <div class="format-helper-box" style="margin-bottom: 1rem;">
+                        💡 Check the box next to any setting you want to batch update across <strong id="bulkEditTargetCount">0</strong> selected monitor(s). Unchecked settings will remain untouched.
+                    </div>
+
+                    <!-- Field: Group -->
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                            <input type="checkbox" id="bulkEditApplyGroup"> Update Group / Category
+                        </label>
+                        <div id="bulkEditGroupFields" style="display: none; margin-top: 0.5rem;">
+                            <input type="text" id="bulkEditGroupVal" class="form-control" list="existingGroupsList" placeholder="Enter group name or 'Ungrouped'">
+                        </div>
+                    </div>
+
+                    <!-- Field: Interval -->
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                            <input type="checkbox" id="bulkEditApplyInterval"> Update Check Interval
+                        </label>
+                        <div id="bulkEditIntervalFields" style="display: none; margin-top: 0.5rem;">
+                            <input type="number" id="bulkEditIntervalVal" class="form-control" min="1" value="15" placeholder="Interval in minutes">
+                        </div>
+                    </div>
+
+                    <!-- Field: Browser Profile -->
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                            <input type="checkbox" id="bulkEditApplyTemplate"> Update Request Browser Profile
+                        </label>
+                        <div id="bulkEditTemplateFields" style="display: none; margin-top: 0.5rem;">
+                            <select id="bulkEditTemplateVal" class="form-control">
+                                <?php foreach ($builtinTemplates as $key => $tmpl): ?>
+                                    <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($tmpl['name']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Field: Extraction Mode -->
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                            <input type="checkbox" id="bulkEditApplyType"> Update Extraction Mode
+                        </label>
+                        <div id="bulkEditTypeFields" style="display: none; margin-top: 0.5rem;">
+                            <select id="bulkEditTypeVal" class="form-control">
+                                <option value="html_full">Full Page HTML / Text</option>
+                                <option value="xpath">XPath Expression (DOM Node)</option>
+                                <option value="css">CSS Selector (.price, #content)</option>
+                                <option value="json">JSON API Dot-Path</option>
+                                <option value="regex">Regex Pattern</option>
+                                <option value="headers">HTTP Response Headers</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Field: Timeout -->
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                            <input type="checkbox" id="bulkEditApplyTimeout"> Update Request Timeout
+                        </label>
+                        <div id="bulkEditTimeoutFields" style="display: none; margin-top: 0.5rem;">
+                            <input type="number" id="bulkEditTimeoutVal" class="form-control" min="5" max="60" value="25" placeholder="Timeout in seconds">
+                        </div>
+                    </div>
+
+                    <!-- Field: Peak/Off-Peak Request Frequency -->
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                            <input type="checkbox" id="bulkEditApplyPeak"> Update Peak/Off-Peak Request Frequency
+                        </label>
+                        <div id="bulkEditPeakFields" style="display: none; margin-top: 0.5rem;">
+                            <label class="checkbox-label" style="margin-bottom: 0.75rem;">
+                                <input type="checkbox" id="bulkEditPeakEnabledVal" checked>
+                                <strong>⚡ Enable Dynamic Peak/Off-Peak Schedule</strong>
+                            </label>
+                            <div id="bulkEditPeakConfigBox">
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label" for="bulkEditPeakStartVal">Peak Start Hour (24h)</label>
+                                        <select id="bulkEditPeakStartVal" class="form-control">
+                                            <?php for ($h = 0; $h < 24; $h++): ?>
+                                                <option value="<?= $h ?>" <?= $h === 9 ? 'selected' : '' ?>><?= sprintf('%02d:00 (%s)', $h, date('g A', strtotime("$h:00"))) ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="bulkEditPeakEndVal">Peak End Hour (24h)</label>
+                                        <select id="bulkEditPeakEndVal" class="form-control">
+                                            <?php for ($h = 0; $h < 24; $h++): ?>
+                                                <option value="<?= $h ?>" <?= $h === 18 ? 'selected' : '' ?>><?= sprintf('%02d:00 (%s)', $h, date('g A', strtotime("$h:00"))) ?></option>
+                                            <?php endfor; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="form-group">
+                                        <label class="form-label" for="bulkEditPeakIntervalVal">Peak Interval (Mins)</label>
+                                        <input type="number" id="bulkEditPeakIntervalVal" class="form-control" min="1" value="5" placeholder="e.g. 5 mins">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="bulkEditOffpeakIntervalVal">Off-Peak Interval (Mins)</label>
+                                        <input type="number" id="bulkEditOffpeakIntervalVal" class="form-control" min="1" value="60" placeholder="e.g. 60 mins">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Field: Notifications & Options -->
+                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                            <input type="checkbox" id="bulkEditApplyNotifications"> Update Notification & Strip Tags Settings
+                        </label>
+                        <div id="bulkEditNotificationsFields" style="display: none; margin-top: 0.5rem;">
+                            <div class="form-grid">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="bulkEditStripTagsVal" checked> Strip HTML tags
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="bulkEditNotifyChangeVal" checked> Notify on Change
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="bulkEditNotifyErrorVal" checked> Notify on Error
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('bulkEditModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="bulkEditSubmitBtn">✏️ Apply Changes</button>
                 </div>
             </form>
         </div>
