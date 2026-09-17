@@ -390,6 +390,7 @@ try {
                 : Storage::getLatestSnapshot($id);
 
             $monitor = Storage::getMonitor($id);
+            $changes = Storage::getChangeEvents(monitorId: $id, includeArchived: true, limit: 50);
 
             echo json_encode([
                 'success' => true,
@@ -398,6 +399,158 @@ try {
                 'snapshots_list' => $snapshots,
                 'current_snapshot' => $snapshotContent,
                 'latest_snapshot' => $snapshotContent,
+                'changes' => $changes,
+            ]);
+            break;
+
+        // --- Compute Diff between Two Snapshots or a Snapshot vs Previous ---
+        case 'get_history_diff':
+            $id = $_GET['id'] ?? $input['id'] ?? '';
+            if (empty($id)) {
+                throw new \InvalidArgumentException('Monitor ID is required');
+            }
+            $fileA = $_GET['file_a'] ?? $input['file_a'] ?? '';
+            $fileB = $_GET['file_b'] ?? $input['file_b'] ?? '';
+
+            $monitor = Storage::getMonitor($id);
+            $type = $monitor['type'] ?? 'html_full';
+
+            $contentA = !empty($fileA) ? Storage::getSnapshotContent($id, $fileA) : '';
+            $contentB = !empty($fileB) ? Storage::getSnapshotContent($id, $fileB) : Storage::getLatestSnapshot($id);
+
+            require_once __DIR__ . '/../includes/diff_formatter.php';
+            $diffData = DiffFormatter::computeContextualDiff($contentA, $contentB, $type, 30);
+            $htmlTable = DiffFormatter::formatHtmlInline($diffData, ['max_lines' => 150]);
+
+            echo json_encode([
+                'success' => true,
+                'diff_data' => $diffData,
+                'html_table' => $htmlTable,
+                'old_len' => strlen($contentA),
+                'new_len' => strlen($contentB),
+            ]);
+            break;
+
+        // --- Get List of All Detected Changes Across Monitors ---
+        case 'get_changes_list':
+            $monitorId = $_GET['monitor_id'] ?? $input['monitor_id'] ?? null;
+            $includeArchived = !empty($_GET['include_archived'] ?? $input['include_archived']);
+            $search = $_GET['search'] ?? $input['search'] ?? '';
+            $date = $_GET['date'] ?? $input['date'] ?? '';
+            $limit = (int)($_GET['limit'] ?? $input['limit'] ?? 100);
+
+            $changes = Storage::getChangeEvents(
+                monitorId: !empty($monitorId) ? (string)$monitorId : null,
+                includeArchived: $includeArchived,
+                search: $search,
+                date: (string)$date,
+                limit: $limit
+            );
+
+            echo json_encode([
+                'success' => true,
+                'changes' => $changes,
+                'count' => count($changes),
+            ]);
+            break;
+
+        // --- Get Detailed Diff for an Individual Change Event ---
+        case 'get_change_diff':
+            $eventId = $_GET['event_id'] ?? $input['event_id'] ?? '';
+            $monitorId = $_GET['monitor_id'] ?? $input['monitor_id'] ?? null;
+            if (empty($eventId)) {
+                throw new \InvalidArgumentException('Change Event ID is required');
+            }
+
+            $event = Storage::getChangeEvent($eventId, $monitorId);
+            if (!$event) {
+                throw new \InvalidArgumentException('Change Event not found');
+            }
+
+            require_once __DIR__ . '/../includes/diff_formatter.php';
+            $oldContent = $event['old_snapshot'] ?? '';
+            $newContent = $event['new_snapshot'] ?? '';
+            $type = $event['type'] ?? 'html_full';
+
+            $diffData = DiffFormatter::computeContextualDiff($oldContent, $newContent, $type, 30);
+            $htmlTable = DiffFormatter::formatHtmlInline($diffData, ['max_lines' => 200]);
+
+            echo json_encode([
+                'success' => true,
+                'event' => $event,
+                'diff_data' => $diffData,
+                'html_table' => $htmlTable,
+            ]);
+            break;
+
+        // --- Archive / Unarchive Change Events ---
+        case 'archive_changes':
+            $eventIds = $input['event_ids'] ?? [];
+            $archive = isset($input['archive']) ? (bool)$input['archive'] : true;
+            if (empty($eventIds) || !is_array($eventIds)) {
+                throw new \InvalidArgumentException('Event IDs array is required');
+            }
+
+            $count = Storage::archiveChangeEvents($eventIds, $archive);
+            echo json_encode([
+                'success' => true,
+                'count' => $count,
+                'message' => ($archive ? 'Archived' : 'Unarchived') . " {$count} change record(s)",
+            ]);
+            break;
+
+        // --- Delete Change Events ---
+        case 'delete_changes':
+            $eventIds = $input['event_ids'] ?? [];
+            if (empty($eventIds) || !is_array($eventIds)) {
+                throw new \InvalidArgumentException('Event IDs array is required');
+            }
+
+            $count = Storage::deleteChangeEvents($eventIds);
+            echo json_encode([
+                'success' => true,
+                'count' => $count,
+                'message' => "Permanently deleted {$count} change record(s)",
+            ]);
+            break;
+
+        // --- Clear All Detected Changes ---
+        case 'clear_all_changes':
+            $monitorId = $input['monitor_id'] ?? null;
+            $count = Storage::clearAllChanges(!empty($monitorId) ? (string)$monitorId : null);
+            echo json_encode([
+                'success' => true,
+                'count' => $count,
+                'message' => "Cleared all change records ({$count} items removed)",
+            ]);
+            break;
+
+        // --- Delete Specific Logs by IDs ---
+        case 'delete_logs':
+            $logIds = $input['log_ids'] ?? [];
+            if (empty($logIds) || !is_array($logIds)) {
+                throw new \InvalidArgumentException('Log IDs array is required');
+            }
+
+            $count = Storage::deleteLogsByIds($logIds);
+            echo json_encode([
+                'success' => true,
+                'count' => $count,
+                'message' => "Deleted {$count} log entry(s)",
+            ]);
+            break;
+
+        // --- Clear Error Logs by Filter ---
+        case 'clear_logs_by_filter':
+            $level = $input['level'] ?? '';
+            $category = $input['category'] ?? '';
+            $search = $input['search'] ?? '';
+
+            $count = Storage::clearLogsByFilter($level, $category, $search);
+            echo json_encode([
+                'success' => true,
+                'count' => $count,
+                'message' => "Cleared {$count} log entry(s)",
             ]);
             break;
 
@@ -451,8 +604,19 @@ try {
         case 'test_notification':
             $channel = $input['channel'] ?? 'all';
             $testSubject = "🧪 ChangeMonitor Test Notification";
-            $testMsg = "This is a test notification from your Website Change Monitor installed on Bluehost shared hosting.\nSystem Time: " . date('Y-m-d H:i:s');
-            $testContext = ['url' => 'https://example.com', 'diff' => "+ Added line for notification test\n- Removed line for notification test"];
+            $testMsg = "This is a test notification from your Website Change Monitor.\nSystem Time: " . date('Y-m-d H:i:s');
+            
+            $testOld = "{\n  \"status\": \"active\",\n  \"product\": {\n    \"name\": \"Pro Plan Subscription\",\n    \"price\": 99,\n    \"currency\": \"USD\",\n    \"stock\": 15\n  }\n}";
+            $testNew = "{\n  \"status\": \"active\",\n  \"product\": {\n    \"name\": \"Pro Plan Subscription (Updated)\",\n    \"price\": 129,\n    \"currency\": \"USD\",\n    \"stock\": 8\n  }\n}";
+            $testDiffData = DiffFormatter::computeContextualDiff($testOld, $testNew, 'json');
+
+            $testContext = [
+                'url' => 'https://example.com/pricing',
+                'old_snapshot' => $testOld,
+                'new_snapshot' => $testNew,
+                'diff_data' => $testDiffData,
+                'monitor' => ['name' => 'Test Product Monitor', 'type' => 'json'],
+            ];
 
             $results = [];
             $settings = Storage::getSettings();
@@ -529,10 +693,17 @@ try {
             $search = $_GET['search'] ?? $input['search'] ?? '';
             $level = $_GET['level'] ?? $input['level'] ?? '';
             $category = $_GET['category'] ?? $input['category'] ?? '';
+            $date = $_GET['date'] ?? $input['date'] ?? '';
             $limit = (int)($_GET['limit'] ?? $input['limit'] ?? 200);
 
-            $logs = Storage::getLogs(search: $search, level: $level, category: $category, limit: $limit);
+            $logs = Storage::getLogs(search: $search, level: $level, category: $category, date: (string)$date, limit: $limit);
             echo json_encode(['success' => true, 'logs' => $logs, 'count' => count($logs)]);
+            break;
+
+        // --- Get Stats & Analytics ---
+        case 'get_stats':
+            $stats = Storage::getStats();
+            echo json_encode(['success' => true, 'stats' => $stats]);
             break;
 
         // --- Clear Application Logs ---

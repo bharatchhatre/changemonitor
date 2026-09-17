@@ -468,7 +468,12 @@ class Storage {
      * @param int $limit Max rows to return
      * @return array
      */
-    public static function getLogs(string $search = '', string $level = '', string $category = '', int $limit = 200): array {
+    public static function getLogs(string $search = '', string $level = '', string $category = '', string|int $date = '', int $limit = 200): array {
+        if (is_int($date)) {
+            $limit = $date;
+            $date = '';
+        }
+
         $logFile = CM_LOGS_DIR . '/error.log';
         if (!file_exists($logFile)) {
             return [];
@@ -482,6 +487,7 @@ class Storage {
         $search = strtolower(trim($search));
         $level = strtoupper(trim($level));
         $category = strtoupper(trim($category));
+        $date = trim((string)$date);
 
         $results = [];
         // Read backwards for latest first
@@ -498,6 +504,14 @@ class Storage {
                     'context' => [],
                     'ip' => '',
                 ];
+            }
+
+            // Filter Date
+            if ($date !== '') {
+                $rowDate = !empty($row['timestamp']) ? substr($row['timestamp'], 0, 10) : '';
+                if ($rowDate !== $date) {
+                    continue;
+                }
             }
 
             // Filter Level
@@ -528,17 +542,153 @@ class Storage {
     }
 
     /**
-     * Clear application error log
+     * Clear application error log and reset error statistics
      */
     public static function clearLogs(): bool {
         $logFile = CM_LOGS_DIR . '/error.log';
         if (file_exists($logFile)) {
-            return @unlink($logFile);
+            @unlink($logFile);
         }
+
+        // Reset error stats
+        $stats = self::getStats();
+        $stats['total_errors'] = 0;
+        if (isset($stats['checks_by_date']) && is_array($stats['checks_by_date'])) {
+            foreach ($stats['checks_by_date'] as &$day) {
+                $day['errors'] = 0;
+            }
+            unset($day);
+        }
+        if (isset($stats['monitors_stats']) && is_array($stats['monitors_stats'])) {
+            foreach ($stats['monitors_stats'] as &$mStat) {
+                $mStat['errors'] = 0;
+            }
+            unset($mStat);
+        }
+        self::writeJson(self::$statsFile, $stats);
         return true;
     }
 
-    public static function saveSnapshot(string $monitorId, string $content): void {
+    /**
+     * Delete specific log entries by their unique IDs and decrement error stats
+     */
+    public static function deleteLogsByIds(array $logIds): int {
+        $logFile = CM_LOGS_DIR . '/error.log';
+        if (!file_exists($logFile) || empty($logIds)) {
+            return 0;
+        }
+
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!$lines) return 0;
+
+        $idSet = array_flip($logIds);
+        $keptLines = [];
+        $deletedCount = 0;
+        $deletedErrorDates = [];
+
+        foreach ($lines as $line) {
+            $row = json_decode($line, true);
+            if ($row && isset($row['id']) && isset($idSet[$row['id']])) {
+                $deletedCount++;
+                $dt = !empty($row['timestamp']) ? substr($row['timestamp'], 0, 10) : date('Y-m-d');
+                $deletedErrorDates[$dt] = ($deletedErrorDates[$dt] ?? 0) + 1;
+                continue;
+            }
+            $keptLines[] = $line;
+        }
+
+        if ($deletedCount > 0) {
+            file_put_contents($logFile, implode("\n", $keptLines) . (empty($keptLines) ? "" : "\n"), LOCK_EX);
+
+            // Decrement total_errors and daily errors
+            $stats = self::getStats();
+            $stats['total_errors'] = max(0, ($stats['total_errors'] ?? 0) - $deletedCount);
+            foreach ($deletedErrorDates as $date => $cnt) {
+                if (isset($stats['checks_by_date'][$date]['errors'])) {
+                    $stats['checks_by_date'][$date]['errors'] = max(0, $stats['checks_by_date'][$date]['errors'] - $cnt);
+                }
+            }
+            self::writeJson(self::$statsFile, $stats);
+        }
+
+        return $deletedCount;
+    }
+
+    /**
+     * Clear error logs by level or category and decrement error stats
+     */
+    public static function clearLogsByFilter(string $level = '', string $category = '', string $search = ''): int {
+        $logFile = CM_LOGS_DIR . '/error.log';
+        if (!file_exists($logFile)) {
+            return 0;
+        }
+
+        $lines = file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!$lines) return 0;
+
+        $search = strtolower(trim($search));
+        $level = strtoupper(trim($level));
+        $category = strtoupper(trim($category));
+
+        $keptLines = [];
+        $deletedCount = 0;
+        $deletedErrorDates = [];
+
+        foreach ($lines as $line) {
+            $row = json_decode($line, true);
+            if (!$row) continue;
+
+            $match = true;
+            if ($level !== '' && ($row['level'] ?? '') !== $level) {
+                $match = false;
+            }
+            if ($category !== '' && ($row['category'] ?? '') !== $category) {
+                $match = false;
+            }
+            if ($search !== '') {
+                $rawString = strtolower(($row['message'] ?? '') . ' ' . json_encode($row['context'] ?? []));
+                if (!str_contains($rawString, $search)) {
+                    $match = false;
+                }
+            }
+
+            if ($match) {
+                $deletedCount++;
+                $dt = !empty($row['timestamp']) ? substr($row['timestamp'], 0, 10) : date('Y-m-d');
+                $deletedErrorDates[$dt] = ($deletedErrorDates[$dt] ?? 0) + 1;
+            } else {
+                $keptLines[] = $line;
+            }
+        }
+
+        if ($deletedCount > 0) {
+            file_put_contents($logFile, implode("\n", $keptLines) . (empty($keptLines) ? "" : "\n"), LOCK_EX);
+
+            $stats = self::getStats();
+            if ($level === '' && $category === '' && $search === '') {
+                // All logs cleared
+                $stats['total_errors'] = 0;
+                if (isset($stats['checks_by_date'])) {
+                    foreach ($stats['checks_by_date'] as &$day) {
+                        $day['errors'] = 0;
+                    }
+                    unset($day);
+                }
+            } else {
+                $stats['total_errors'] = max(0, ($stats['total_errors'] ?? 0) - $deletedCount);
+                foreach ($deletedErrorDates as $date => $cnt) {
+                    if (isset($stats['checks_by_date'][$date]['errors'])) {
+                        $stats['checks_by_date'][$date]['errors'] = max(0, $stats['checks_by_date'][$date]['errors'] - $cnt);
+                    }
+                }
+            }
+            self::writeJson(self::$statsFile, $stats);
+        }
+
+        return $deletedCount;
+    }
+
+    public static function saveSnapshot(string $monitorId, string $content): string {
         $dir = CM_HISTORY_DIR . '/' . $monitorId;
         if (!is_dir($dir)) {
             @mkdir($dir, 0755, true);
@@ -546,7 +696,8 @@ class Storage {
         // Save current snapshot
         file_put_contents($dir . '/latest.txt', $content, LOCK_EX);
         // Save timestamped archive
-        $archiveFile = $dir . '/snap_' . date('Ymd_His') . '.txt';
+        $baseName = 'snap_' . date('Ymd_His') . '.txt';
+        $archiveFile = $dir . '/' . $baseName;
         file_put_contents($archiveFile, $content, LOCK_EX);
 
         // Keep at most 30 recent snapshot files
@@ -558,6 +709,303 @@ class Storage {
                 @unlink($oldFile);
             }
         }
+
+        return $baseName;
+    }
+
+    /**
+     * Save structured change event record for a monitor
+     */
+    public static function saveChangeEvent(
+        string $monitorId,
+        string $oldSnapshot,
+        string $newSnapshot,
+        array $diffData,
+        string $oldSnapFile = '',
+        string $newSnapFile = ''
+    ): array {
+        $dir = CM_HISTORY_DIR . '/' . $monitorId;
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        $changesFile = $dir . '/changes.json';
+        $changes = file_exists($changesFile) ? (json_decode(file_get_contents($changesFile), true) ?: []) : [];
+
+        $monitor = self::getMonitor($monitorId) ?? ['name' => 'Target ' . $monitorId, 'group' => 'Ungrouped', 'type' => 'html_full'];
+
+        $eventId = 'chg_' . uniqid('', true);
+        $event = [
+            'id' => $eventId,
+            'monitor_id' => $monitorId,
+            'monitor_name' => $monitor['name'] ?? 'Target',
+            'group' => $monitor['group'] ?? 'Ungrouped',
+            'type' => $monitor['type'] ?? 'html_full',
+            'timestamp' => date('c'),
+            'old_hash' => hash('sha256', $oldSnapshot),
+            'new_hash' => hash('sha256', $newSnapshot),
+            'old_snapshot_file' => $oldSnapFile,
+            'new_snapshot_file' => $newSnapFile,
+            'old_size' => strlen($oldSnapshot),
+            'new_size' => strlen($newSnapshot),
+            'added_count' => (int)($diffData['added_count'] ?? 0),
+            'removed_count' => (int)($diffData['removed_count'] ?? 0),
+            'total_changed' => (int)($diffData['total_changed'] ?? 0),
+            'is_big_change' => !empty($diffData['is_big_change']),
+            'archived' => false,
+            'old_snapshot' => $oldSnapshot,
+            'new_snapshot' => $newSnapshot,
+        ];
+
+        // Store event (max 50 per monitor)
+        array_unshift($changes, $event);
+        if (count($changes) > 50) {
+            $changes = array_slice($changes, 0, 50);
+        }
+
+        file_put_contents($changesFile, json_encode($changes, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+        return $event;
+    }
+
+    /**
+     * Get list of detected change events (all monitors or specific monitor)
+     */
+    public static function getChangeEvents(
+        ?string $monitorId = null,
+        bool $includeArchived = false,
+        string $search = '',
+        string|int $date = '',
+        int $limit = 100
+    ): array {
+        if (is_int($date)) {
+            $limit = $date;
+            $date = '';
+        }
+
+        $events = [];
+        $monitors = self::getMonitors();
+
+        if (!empty($monitorId)) {
+            $targetDirs = [CM_HISTORY_DIR . '/' . $monitorId];
+        } else {
+            $targetDirs = glob(CM_HISTORY_DIR . '/*', GLOB_ONLYDIR) ?: [];
+        }
+
+        $search = strtolower(trim($search));
+        $date = trim((string)$date);
+
+        foreach ($targetDirs as $dir) {
+            $mId = basename($dir);
+            $changesFile = $dir . '/changes.json';
+            if (!file_exists($changesFile)) {
+                continue;
+            }
+
+            $mChanges = json_decode(file_get_contents($changesFile), true);
+            if (!is_array($mChanges)) {
+                continue;
+            }
+
+            $mInfo = $monitors[$mId] ?? null;
+
+            foreach ($mChanges as $chg) {
+                if (!$includeArchived && !empty($chg['archived'])) {
+                    continue;
+                }
+
+                // Filter Date
+                if ($date !== '') {
+                    $itemDate = !empty($chg['timestamp']) ? substr($chg['timestamp'], 0, 10) : '';
+                    if ($itemDate !== $date) {
+                        continue;
+                    }
+                }
+
+                // Sync current monitor metadata if changed
+                if ($mInfo) {
+                    $chg['monitor_name'] = $mInfo['name'] ?? $chg['monitor_name'];
+                    $chg['group'] = $mInfo['group'] ?? $chg['group'];
+                }
+
+                if ($search !== '') {
+                    $haystack = strtolower(($chg['monitor_name'] ?? '') . ' ' . ($chg['group'] ?? '') . ' ' . ($chg['id'] ?? ''));
+                    if (!str_contains($haystack, $search)) {
+                        continue;
+                    }
+                }
+
+                // Don't include huge snapshot bodies in list overview for performance
+                $listEvent = $chg;
+                unset($listEvent['old_snapshot'], $listEvent['new_snapshot']);
+                $events[] = $listEvent;
+            }
+        }
+
+        // Sort by timestamp descending
+        usort($events, function($a, $b) {
+            return strcmp($b['timestamp'] ?? '', $a['timestamp'] ?? '');
+        });
+
+        if (count($events) > $limit) {
+            $events = array_slice($events, 0, $limit);
+        }
+
+        return $events;
+    }
+
+    /**
+     * Get a single change event by ID (including full old/new snapshots)
+     */
+    public static function getChangeEvent(string $eventId, ?string $monitorId = null): ?array {
+        if (!empty($monitorId)) {
+            $dirs = [CM_HISTORY_DIR . '/' . $monitorId];
+        } else {
+            $dirs = glob(CM_HISTORY_DIR . '/*', GLOB_ONLYDIR) ?: [];
+        }
+
+        foreach ($dirs as $dir) {
+            $changesFile = $dir . '/changes.json';
+            if (!file_exists($changesFile)) continue;
+            $items = json_decode(file_get_contents($changesFile), true);
+            if (!is_array($items)) continue;
+
+            foreach ($items as $item) {
+                if (($item['id'] ?? '') === $eventId) {
+                    return $item;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Archive or Unarchive change events
+     */
+    public static function archiveChangeEvents(array $eventIds, bool $archive = true): int {
+        if (empty($eventIds)) return 0;
+        $idSet = array_flip($eventIds);
+        $updatedCount = 0;
+
+        $dirs = glob(CM_HISTORY_DIR . '/*', GLOB_ONLYDIR) ?: [];
+        foreach ($dirs as $dir) {
+            $changesFile = $dir . '/changes.json';
+            if (!file_exists($changesFile)) continue;
+            $items = json_decode(file_get_contents($changesFile), true);
+            if (!is_array($items)) continue;
+
+            $modified = false;
+            foreach ($items as &$item) {
+                if (isset($idSet[$item['id'] ?? ''])) {
+                    $item['archived'] = $archive;
+                    $modified = true;
+                    $updatedCount++;
+                }
+            }
+            unset($item);
+
+            if ($modified) {
+                file_put_contents($changesFile, json_encode($items, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+            }
+        }
+
+        return $updatedCount;
+    }
+
+    /**
+     * Delete specific change events and decrement change stats
+     */
+    public static function deleteChangeEvents(array $eventIds): int {
+        if (empty($eventIds)) return 0;
+        $idSet = array_flip($eventIds);
+        $deletedCount = 0;
+        $deletedChangeDates = [];
+
+        $dirs = glob(CM_HISTORY_DIR . '/*', GLOB_ONLYDIR) ?: [];
+        foreach ($dirs as $dir) {
+            $changesFile = $dir . '/changes.json';
+            if (!file_exists($changesFile)) continue;
+            $items = json_decode(file_get_contents($changesFile), true);
+            if (!is_array($items)) continue;
+
+            $kept = [];
+            $modified = false;
+            foreach ($items as $item) {
+                if (isset($idSet[$item['id'] ?? ''])) {
+                    $modified = true;
+                    $deletedCount++;
+                    $dt = !empty($item['timestamp']) ? substr($item['timestamp'], 0, 10) : date('Y-m-d');
+                    $deletedChangeDates[$dt] = ($deletedChangeDates[$dt] ?? 0) + 1;
+                } else {
+                    $kept[] = $item;
+                }
+            }
+
+            if ($modified) {
+                file_put_contents($changesFile, json_encode($kept, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), LOCK_EX);
+            }
+        }
+
+        if ($deletedCount > 0) {
+            $stats = self::getStats();
+            $stats['total_changes'] = max(0, ($stats['total_changes'] ?? 0) - $deletedCount);
+            foreach ($deletedChangeDates as $date => $cnt) {
+                if (isset($stats['checks_by_date'][$date]['changes'])) {
+                    $stats['checks_by_date'][$date]['changes'] = max(0, $stats['checks_by_date'][$date]['changes'] - $cnt);
+                }
+            }
+            self::writeJson(self::$statsFile, $stats);
+        }
+
+        return $deletedCount;
+    }
+
+    /**
+     * Clear all change records for all or a specific monitor and reset change stats
+     */
+    public static function clearAllChanges(?string $monitorId = null): int {
+        if (!empty($monitorId)) {
+            $dirs = [CM_HISTORY_DIR . '/' . $monitorId];
+        } else {
+            $dirs = glob(CM_HISTORY_DIR . '/*', GLOB_ONLYDIR) ?: [];
+        }
+
+        $totalCleared = 0;
+        foreach ($dirs as $dir) {
+            $changesFile = $dir . '/changes.json';
+            if (file_exists($changesFile)) {
+                $items = json_decode(file_get_contents($changesFile), true) ?: [];
+                $totalCleared += count($items);
+                @unlink($changesFile);
+            }
+        }
+
+        if ($totalCleared > 0) {
+            $stats = self::getStats();
+            if (empty($monitorId)) {
+                $stats['total_changes'] = 0;
+                if (isset($stats['checks_by_date'])) {
+                    foreach ($stats['checks_by_date'] as &$day) {
+                        $day['changes'] = 0;
+                    }
+                    unset($day);
+                }
+                if (isset($stats['monitors_stats'])) {
+                    foreach ($stats['monitors_stats'] as &$mStat) {
+                        $mStat['changes'] = 0;
+                    }
+                    unset($mStat);
+                }
+            } else {
+                $stats['total_changes'] = max(0, ($stats['total_changes'] ?? 0) - $totalCleared);
+                if (isset($stats['monitors_stats'][$monitorId])) {
+                    $stats['monitors_stats'][$monitorId]['changes'] = 0;
+                }
+            }
+            self::writeJson(self::$statsFile, $stats);
+        }
+
+        return $totalCleared;
     }
 
     public static function getHistoryLog(string $monitorId, int $maxLines = 200): string {

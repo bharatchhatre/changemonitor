@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-09-18]
 ### Added
+- **Dynamic Changes Detected & Errors Count Reset on Deletion**:
+  - Automatically decrements and resets global and daily metrics in `stats.json` (`total_changes`, `total_errors`, and `checks_by_date[date]['changes']` / `checks_by_date[date]['errors']`) whenever change records or error logs are deleted individually, in bulk, or fully cleared.
+  - Live client-side stat card updates (`#statValChanges`, `#statValErrors`) via `api.php?action=get_stats` upon record deletion without requiring page reload.
+- **Day-Wise Breakdown & Date Filtering**:
+  - Enhanced **📊 Analytics** tab with a Day-Wise Actions column providing one-click jump buttons (`🔍 Changes (N)` and `⚠️ Logs (N)`) to view specific dates.
+  - Added date filtering (`<input type="date">`) and query parameter support (`date=YYYY-MM-DD`) in both **Detected Changes Explorer** and **Server Error & System Logs** tabs and API (`get_changes_list`, `get_logs`).
+  - Added global helper functions `openChangesForDate(date)` and `openLogsForDate(date)` for seamless day-wise navigation.
+- **Multi-Theme Engine & Instant Theme Switcher**:
+  - Added 7 customizable color themes: **Dark Night (Default)**, **☀️ Clean Light**, **🔴 Crimson Red**, **🔵 Cobalt Blue**, **🟢 Emerald Forest**, **🟣 Sunset Purple**, and **🌈 Cyberpunk Neon**.
+  - Header theme switcher dropdown with automatic `localStorage` persistence and instant client-side switching.
+  - Full variable-driven color system for backgrounds, cards, text contrast, borders, and ambient glow.
+- **Interactive Red/Green Diff View in Monitor History**:
+  - Modal toggle between **🔴/🟢 Red & Green Diff**, **📄 Raw Content**, and **📋 Change Log**.
+  - Dynamic snapshot version comparison selector with instant on-demand diff computation.
+- **Detected Changes Explorer & Drilldown**:
+  - Clickable **Changes Detected** dashboard card and monitor change count badges opening a comprehensive Changes Explorer modal.
+  - Searchable and filterable change event log with snapshot sizes and +/- change badges.
+  - Single-change detail inspector showing line-by-line red/green previous vs. new diff table.
+- **Change & Error Archive/Deletion Management**:
+  - Single and bulk **Archive/Unarchive** (`archive_changes`) and **Delete** (`delete_changes`) for detected change events.
+  - Single log entry deletion (`delete_logs`), bulk selected error log deletion, and full log purge (`clear_logs_by_filter`).
+  - Clickable **Errors Encountered** dashboard card jumping directly to Server Error & System Logs tab.
+- **Contextual Line Diff Notification System** (`DiffFormatter`):
+  - **Small Changes**: Color-coded inline diffs across Gmail (SMTP HTML table with `#fee2e2` deletions / `#dcfce7` additions), Telegram (`🔴 - [L#]` and `🟢 + [L#]`), and WhatsApp (`~🔴 - [L#]~` and `*🟢 + [L#]*`).
+  - **JSON & HTML Context Extraction**: Automatic detection and labeling of JSON property hierarchy/keys (e.g. `[status]`, `[rates.EUR]`) and HTML container tag contexts next to line numbers.
+  - **Big Changes Fallback**: Automatically classifies large diffs exceeding configurable line threshold (`diff_big_change_threshold_lines`) or payload size limits.
+  - **Standalone Snapshot File Dispatches**: For big changes, attaches self-contained dark-themed HTML snapshot files (`previous_snapshot_*.html` and `new_snapshot_*.html`) with highlighted red/green changes to Email (MIME `multipart/mixed`), Telegram (`sendDocument`), and WhatsApp (`sendOpenWAFile`).
+  - Added configurable **Big Change Diff Threshold (lines)** setting in Admin Settings tab and API.
 - Integrated **🗑️ Trash / Deleted** sub-tab directly beside Active and Inactive sub-tabs within the Monitors panel.
 - Support for batch updating **⚡ Peak / Off-Peak Request Frequency** in the Bulk Edit modal and `Storage::bulkEditMonitors`.
 - Tab and sub-tab state persistence using `sessionStorage` and URL hash ensuring active tab/sub-tab is preserved across form submits and reloads.
@@ -22,6 +50,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Backend bulk storage operations (`saveMonitorsBulk`, `bulkUpdateStatus`, `bulkDeleteMonitors`, `bulkAssignGroup`, `bulkEditMonitors`, `restoreMonitor`, `bulkRestoreMonitors`, `purgeDeletedMonitor`, `emptyTrash`) and API endpoints (`bulk_add_monitors`, `bulk_status`, `bulk_delete`, `bulk_run_check`, `bulk_set_group`, `bulk_edit`, `get_trash`, `restore_monitor`, `bulk_restore`, `purge_trash`, `empty_trash`).
 
 ### Fixed
+- Fixed `TypeError: Argument #4 ($date) must be of type string, int given` in `Storage::getChangeEvents` by adding type union `string|int $date` with backward-compatible limit assignment and explicit named arguments in `get_history` API endpoint.
+- Fixed `TypeError: Cannot set properties of null (setting 'checked')` in `window.editMonitor` when editing a target monitor by safely checking DOM elements and removing deprecated field references.
+- Fixed DOM warning regarding multiple form actions by cleanly separating `#settingsForm` from standalone Backup & Restore and cPanel Cron information panels.
+- Fixed brand-title and table timestamp text visibility in Clean Light theme by replacing hardcoded `#fff` with dynamic `var(--text-primary)`.
+- Improved color contrast in light theme for group badges, table headers, secondary buttons, bulk selected badge, and link hover states.
 - Fixed `ReferenceError: Cannot access 'bulkSelectedCount' before initialization` by moving core selection and group filtering functions before sub-tab initialization.
 - Fixed category/group pill clicks by implementing event delegation on the group filter bar.
 - Implemented dynamic sub-tab-aware group counts so group filter pills reflect active monitors on the Active sub-tab and inactive monitors on the Inactive sub-tab.

@@ -146,6 +146,20 @@ $trashCount = count($trash);
                 </div>
             </div>
             <div class="nav-actions">
+                <!-- Theme Switcher Selector -->
+                <div style="display: flex; align-items: center; gap: 0.35rem; background: var(--bg-subtle); padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <label for="themeSelect" style="font-size: 0.8rem; color: var(--text-muted); cursor: pointer;" title="Change UI Theme">🎨</label>
+                    <select id="themeSelect" class="form-control" style="min-height: 30px; padding: 0.15rem 0.4rem; font-size: 0.8rem; width: auto; background: transparent; border: none; color: var(--text-primary); cursor: pointer;" aria-label="Select UI Theme">
+                        <option value="dark">🌑 Dark Night (Default)</option>
+                        <option value="light">☀️ Clean Light</option>
+                        <option value="red">🔴 Crimson Red</option>
+                        <option value="blue">🔵 Cobalt Blue</option>
+                        <option value="emerald">🟢 Emerald Forest</option>
+                        <option value="purple">🟣 Sunset Purple</option>
+                        <option value="multicolor">🌈 Cyberpunk Neon</option>
+                    </select>
+                </div>
+
                 <button class="btn btn-secondary btn-sm" id="runAllBtn">▶ Run All Checks</button>
                 <button class="btn btn-secondary btn-sm" id="bulkAddBtn">➕ Bulk Add</button>
                 <button class="btn btn-primary btn-sm" id="addMonitorBtn">+ Add Target</button>
@@ -174,15 +188,15 @@ $trashCount = count($trash);
                 <div class="stat-value"><?= number_format($stats['total_checks'] ?? 0) ?></div>
                 <div class="stat-desc">Avg speed: <?= $stats['avg_response_time_ms'] ?? 0 ?>ms</div>
             </div>
-            <div class="stat-card stat-warning">
-                <div class="stat-label">Changes Detected</div>
-                <div class="stat-value"><?= number_format($stats['total_changes'] ?? 0) ?></div>
-                <div class="stat-desc"><?= $changesToday ?> changes detected today</div>
+            <div class="stat-card stat-warning stat-card-clickable" id="statCardChanges" title="Click to view all detected changes" style="cursor: pointer;">
+                <div class="stat-label">Changes Detected 🔍</div>
+                <div class="stat-value" id="statValChanges"><?= number_format($stats['total_changes'] ?? 0) ?></div>
+                <div class="stat-desc"><?= $changesToday ?> changes detected today (click to inspect)</div>
             </div>
-            <div class="stat-card stat-danger">
-                <div class="stat-label">Errors Encountered</div>
-                <div class="stat-value"><?= number_format($stats['total_errors'] ?? 0) ?></div>
-                <div class="stat-desc">4xx / 5xx / Network timeouts</div>
+            <div class="stat-card stat-danger stat-card-clickable" id="statCardErrors" title="Click to view error log" style="cursor: pointer;">
+                <div class="stat-label">Errors Encountered ⚠️</div>
+                <div class="stat-value" id="statValErrors"><?= number_format($stats['total_errors'] ?? 0) ?></div>
+                <div class="stat-desc">4xx / 5xx / Network timeouts (click to view)</div>
             </div>
         </div>
 
@@ -333,7 +347,9 @@ $trashCount = count($trash);
                                                 </div>
                                             </td>
                                             <td>
-                                                <strong><?= (int)($m['change_count'] ?? 0) ?></strong>
+                                                <span onclick="openChangesExplorer('<?= $id ?>')" style="cursor: pointer;" title="Click to view detected changes for this target">
+                                                    <strong class="badge <?= ((int)($m['change_count'] ?? 0) > 0) ? 'badge-changed' : '' ?>"><?= (int)($m['change_count'] ?? 0) ?></strong>
+                                                </span>
                                                 <?php if (!empty($m['last_change_at'])): ?>
                                                     <div style="font-size: 0.75rem; color: var(--warning);">
                                                         <?= date('M d, H:i', strtotime($m['last_change_at'])) ?>
@@ -436,7 +452,9 @@ $trashCount = count($trash);
                                                 </div>
                                             </td>
                                             <td>
-                                                <strong><?= (int)($m['change_count'] ?? 0) ?></strong>
+                                                <span onclick="openChangesExplorer('<?= $id ?>')" style="cursor: pointer;" title="Click to view detected changes for this target">
+                                                    <strong class="badge <?= ((int)($m['change_count'] ?? 0) > 0) ? 'badge-changed' : '' ?>"><?= (int)($m['change_count'] ?? 0) ?></strong>
+                                                </span>
                                                 <?php if (!empty($m['last_change_at'])): ?>
                                                     <div style="font-size: 0.75rem; color: var(--warning);">
                                                         <?= date('M d, H:i', strtotime($m['last_change_at'])) ?>
@@ -460,7 +478,7 @@ $trashCount = count($trash);
 
                 <!-- Sub-Tab Pane: Trash / Deleted Monitors -->
                 <div class="subtab-pane" id="subtab-trash" style="display: none;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; padding: 0.75rem 1rem; background: rgba(15, 23, 42, 0.4); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--bg-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
                         <div>
                             <strong style="color: var(--danger);">🗑️ Deleted Targets Bin</strong>
                             <span style="font-size: 0.825rem; color: var(--text-muted); margin-left: 0.5rem;">Deleted monitors are kept here. Restore anytime or permanently purge.</span>
@@ -556,6 +574,7 @@ $trashCount = count($trash);
                                 <th>Changes Detected</th>
                                 <th>Errors</th>
                                 <th>Success Rate</th>
+                                <th style="text-align: right;">Day-Wise Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -565,19 +584,29 @@ $trashCount = count($trash);
                             if (empty($checksByDate)):
                             ?>
                                 <tr>
-                                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No analytics logged yet. Run some checks to populate data.</td>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">No analytics logged yet. Run some checks to populate data.</td>
                                 </tr>
                             <?php else: ?>
                                 <?php foreach ($checksByDate as $date => $row): ?>
                                     <?php
                                     $rate = $row['checks'] > 0 ? round((($row['checks'] - $row['errors']) / $row['checks']) * 100, 1) : 100;
+                                    $chgCount = (int)($row['changes'] ?? 0);
+                                    $errCount = (int)($row['errors'] ?? 0);
                                     ?>
                                     <tr>
                                         <td><strong><?= htmlspecialchars($date) ?></strong></td>
                                         <td><?= number_format($row['checks']) ?></td>
-                                        <td><span class="badge badge-changed"><?= $row['changes'] ?></span></td>
-                                        <td><?= $row['errors'] > 0 ? "<span class='badge badge-error'>{$row['errors']}</span>" : '0' ?></td>
+                                        <td><span class="badge badge-changed"><?= $chgCount ?></span></td>
+                                        <td><?= $errCount > 0 ? "<span class='badge badge-error'>{$errCount}</span>" : '0' ?></td>
                                         <td><span class="badge badge-active"><?= $rate ?>%</span></td>
+                                        <td style="text-align: right; white-space: nowrap;">
+                                            <button type="button" class="btn btn-secondary btn-sm" onclick="openChangesForDate('<?= htmlspecialchars($date) ?>')" title="View detected changes for <?= htmlspecialchars($date) ?>" style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
+                                                🔍 Changes (<?= $chgCount ?>)
+                                            </button>
+                                            <button type="button" class="btn btn-secondary btn-sm" onclick="openLogsForDate('<?= htmlspecialchars($date) ?>')" title="View logs & errors for <?= htmlspecialchars($date) ?>" style="padding: 0.25rem 0.6rem; font-size: 0.775rem; margin-left: 4px;">
+                                                ⚠️ Logs (<?= $errCount ?>)
+                                            </button>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
@@ -592,18 +621,22 @@ $trashCount = count($trash);
             <div class="panel">
                 <div class="panel-header">
                     <div class="panel-title">Server Error & System Logs</div>
-                    <div style="display: flex; gap: 0.5rem;">
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                         <button class="btn btn-secondary btn-sm" id="refreshLogsBtn">🔄 Refresh</button>
-                        <button class="btn btn-danger btn-sm" id="clearLogsBtn">🗑️ Clear Logs</button>
+                        <button class="btn btn-secondary btn-sm" id="deleteSelectedLogsBtn" style="display: none;">🗑️ Delete Selected (<span id="selectedLogsCount">0</span>)</button>
+                        <button class="btn btn-danger btn-sm" id="clearLogsBtn">🔥 Clear All Logs</button>
                     </div>
                 </div>
 
                 <!-- Search & Filters Bar -->
-                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; background: rgba(15, 23, 42, 0.6); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
                     <div style="flex: 1; min-width: 200px;">
                         <input type="text" id="logSearchInput" class="form-control" placeholder="🔍 Search message, error or monitor ID..." style="min-height: 38px;">
                     </div>
                     <div style="width: 150px;">
+                        <input type="date" id="logDateInput" class="form-control" title="Filter logs by date" style="min-height: 38px;">
+                    </div>
+                    <div style="width: 140px;">
                         <select id="logLevelSelect" class="form-control" style="min-height: 38px;">
                             <option value="">All Levels</option>
                             <option value="ERROR">ERROR</option>
@@ -611,7 +644,7 @@ $trashCount = count($trash);
                             <option value="INFO">INFO</option>
                         </select>
                     </div>
-                    <div style="width: 150px;">
+                    <div style="width: 140px;">
                         <select id="logCategorySelect" class="form-control" style="min-height: 38px;">
                             <option value="">All Categories</option>
                             <option value="MONITOR">MONITOR</option>
@@ -627,16 +660,20 @@ $trashCount = count($trash);
                     <table class="data-table" id="logsTable">
                         <thead>
                             <tr>
+                                <th style="width: 40px;" class="th-checkbox">
+                                    <input type="checkbox" id="selectAllLogsCheckbox" class="custom-checkbox" title="Select all logs">
+                                </th>
                                 <th style="width: 140px;">Timestamp</th>
                                 <th style="width: 90px;">Level</th>
                                 <th style="width: 110px;">Category</th>
                                 <th>Message / Context</th>
                                 <th style="width: 90px;">IP / Source</th>
+                                <th style="width: 80px; text-align: right;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="logsTableBody">
                             <tr>
-                                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading logs...</td>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading logs...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -656,7 +693,7 @@ $trashCount = count($trash);
 
                 <div class="form-grid">
                     <?php foreach ($builtinTemplates as $key => $tmpl): ?>
-                        <div style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                        <div style="background: var(--bg-subtle); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                                 <strong><?= htmlspecialchars($tmpl['name']) ?></strong>
                                 <span class="badge badge-type"><?= htmlspecialchars($key) ?></span>
@@ -788,6 +825,11 @@ $trashCount = count($trash);
                                 <input type="number" id="settingDefaultInterval" class="form-control" min="1" value="<?= (int)($settings['default_interval_mins'] ?? 15) ?>">
                             </div>
                             <div class="form-group">
+                                <label class="form-label" for="settingBigChangeThreshold">Large Change Attachment Threshold (Lines)</label>
+                                <input type="number" id="settingBigChangeThreshold" class="form-control" min="5" max="500" value="<?= (int)($settings['diff_big_change_threshold_lines'] ?? 30) ?>">
+                                <p class="form-help">If changed lines exceed this threshold, separate color-highlighted HTML files are attached instead of inline text.</p>
+                            </div>
+                            <div class="form-group">
                                 <label class="form-label" for="settingNewPassword">Update Admin Password</label>
                                 <input type="password" id="settingNewPassword" class="form-control" placeholder="Leave blank to keep current password">
                             </div>
@@ -805,37 +847,39 @@ $trashCount = count($trash);
                         </div>
                     </div>
 
-                    <!-- Full Single-File Backup & Restore -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
-                        <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--success);">💾 Single-File Full Backup & Restore</h4>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
-                            Export everything (all target monitors, settings, notification tokens, stats, and text history snapshot logs) into a single downloadable JSON backup file, or restore your entire configuration in one click.
-                        </p>
-                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
-                            <a href="api.php?action=export_backup" class="btn btn-secondary btn-sm" download>⬇️ Download Full Backup (.json)</a>
-                            
-                            <label class="btn btn-primary btn-sm" style="margin: 0; cursor: pointer;">
-                                ⬆️ Restore Backup File
-                                <input type="file" id="restoreFileInput" accept=".json" style="display: none;">
-                            </label>
-                        </div>
+                    <div style="margin-bottom: 2rem;">
+                        <button type="submit" class="btn btn-primary">Save All Settings</button>
                     </div>
-
-                    <!-- Bluehost cPanel Cron Setup Info -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
-                        <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--info);">🕒 Bluehost cPanel Cron Setup</h4>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
-                            To run automated background checks, add this command to <strong>cPanel &gt; Cron Jobs</strong> (e.g. every 15 minutes):
-                        </p>
-                        <pre style="background: #000; padding: 0.75rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; color: #a5f3fc;">/usr/local/bin/php <?= htmlspecialchars(CM_ROOT) ?>/public/cron.php</pre>
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                            Or trigger via secure Webhook URL:
-                        </p>
-                        <pre style="background: #000; padding: 0.75rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; color: #a5f3fc;"><?= (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['REQUEST_URI'] ?? '') ?>/cron.php?token=<?= htmlspecialchars(cm_env('CRON_TOKEN', 'cron_secret_token_123')) ?></pre>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">Save All Settings</button>
                 </form>
+
+                <!-- Full Single-File Backup & Restore -->
+                <div style="background: var(--bg-subtle); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                    <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--success);">💾 Single-File Full Backup & Restore</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Export everything (all target monitors, settings, notification tokens, stats, and text history snapshot logs) into a single downloadable JSON backup file, or restore your entire configuration in one click.
+                    </p>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <a href="api.php?action=export_backup" class="btn btn-secondary btn-sm" download>⬇️ Download Full Backup (.json)</a>
+                        
+                        <label class="btn btn-primary btn-sm" style="margin: 0; cursor: pointer;">
+                            ⬆️ Restore Backup File
+                            <input type="file" id="restoreFileInput" accept=".json" style="display: none;">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Bluehost cPanel Cron Setup Info -->
+                <div style="background: var(--bg-subtle); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                    <h4 style="font-size: 0.95rem; margin-bottom: 0.5rem; color: var(--info);">🕒 Bluehost cPanel Cron Setup</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                        To run automated background checks, add this command to <strong>cPanel &gt; Cron Jobs</strong> (e.g. every 15 minutes):
+                    </p>
+                    <pre style="background: var(--bg-code); padding: 0.75rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; color: var(--info); border: 1px solid var(--border-color);">/usr/local/bin/php <?= htmlspecialchars(CM_ROOT) ?>/public/cron.php</pre>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                        Or trigger via secure Webhook URL:
+                    </p>
+                    <pre style="background: var(--bg-code); padding: 0.75rem; border-radius: 4px; font-family: var(--font-mono); font-size: 0.8rem; overflow-x: auto; color: var(--info); border: 1px solid var(--border-color);"><?= (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['REQUEST_URI'] ?? '') ?>/cron.php?token=<?= htmlspecialchars(cm_env('CRON_TOKEN', 'cron_secret_token_123')) ?></pre>
+                </div>
             </div>
         </div>
     </div>
@@ -907,7 +951,7 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Dynamic Peak/Off-Peak Schedule Options -->
-                    <div style="background: rgba(15, 23, 42, 0.7); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1.25rem;">
+                    <div style="background: var(--bg-subtle); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1.25rem;">
                         <label class="checkbox-label" style="min-height: auto; margin-bottom: 0.75rem;">
                             <input type="checkbox" id="monitorPeakScheduleEnabled">
                             <strong>⚡ Enable Peak/Off-Peak Request Frequency</strong>
@@ -936,12 +980,12 @@ $trashCount = count($trash);
                             </div>
                             <div class="form-grid">
                                 <div class="form-group">
-                                    <label class="form-label" for="monitorPeakInterval">Peak Interval (More Frequent)</label>
-                                    <input type="number" id="monitorPeakInterval" class="form-control" min="1" value="5" placeholder="e.g. 5 mins">
+                                    <label class="form-label" for="monitorPeakInterval">Peak Check Interval (Mins)</label>
+                                    <input type="number" id="monitorPeakInterval" class="form-control" min="1" value="5" placeholder="e.g. 5">
                                 </div>
                                 <div class="form-group">
-                                    <label class="form-label" for="monitorOffpeakInterval">Off-Peak Interval (Less Frequent)</label>
-                                    <input type="number" id="monitorOffpeakInterval" class="form-control" min="1" value="60" placeholder="e.g. 60 mins">
+                                    <label class="form-label" for="monitorOffpeakInterval">Off-Peak Check Interval (Mins)</label>
+                                    <input type="number" id="monitorOffpeakInterval" class="form-control" min="1" value="60" placeholder="e.g. 60">
                                 </div>
                             </div>
                         </div>
@@ -960,11 +1004,7 @@ $trashCount = count($trash);
                     <div class="form-grid">
                         <label class="checkbox-label">
                             <input type="checkbox" id="monitorStripTags" checked>
-                            Strip HTML tags (extract clean text)
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="monitorSimulateDelay">
-                            Simulate human random delay
+                            Strip HTML tags before comparing
                         </label>
                         <label class="checkbox-label">
                             <input type="checkbox" id="monitorNotifyChange" checked>
@@ -977,9 +1017,9 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Live Test Preview Output Box -->
-                    <div id="previewOutput" style="display: none; margin-top: 1.5rem; background: #000; padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div id="previewOutput" style="display: none; margin-top: 1.5rem; background: var(--bg-code); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
                         <div id="previewMeta" style="font-size: 0.8rem; margin-bottom: 0.5rem;"></div>
-                        <div id="previewContent" style="font-family: var(--font-mono); font-size: 0.8rem; max-height: 180px; overflow-y: auto; color: #a5f3fc; white-space: pre-wrap;"></div>
+                        <div id="previewContent" style="font-family: var(--font-mono); font-size: 0.8rem; max-height: 180px; overflow-y: auto; color: var(--info); white-space: pre-wrap;"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1138,8 +1178,8 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Field: Group -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
-                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                    <div style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
                             <input type="checkbox" id="bulkEditApplyGroup"> Update Group / Category
                         </label>
                         <div id="bulkEditGroupFields" style="display: none; margin-top: 0.5rem;">
@@ -1148,8 +1188,8 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Field: Interval -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
-                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                    <div style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
                             <input type="checkbox" id="bulkEditApplyInterval"> Update Check Interval
                         </label>
                         <div id="bulkEditIntervalFields" style="display: none; margin-top: 0.5rem;">
@@ -1158,8 +1198,8 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Field: Browser Profile -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
-                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                    <div style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
                             <input type="checkbox" id="bulkEditApplyTemplate"> Update Request Browser Profile
                         </label>
                         <div id="bulkEditTemplateFields" style="display: none; margin-top: 0.5rem;">
@@ -1172,8 +1212,8 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Field: Extraction Mode -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
-                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                    <div style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
                             <input type="checkbox" id="bulkEditApplyType"> Update Extraction Mode
                         </label>
                         <div id="bulkEditTypeFields" style="display: none; margin-top: 0.5rem;">
@@ -1189,8 +1229,8 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Field: Timeout -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
-                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                    <div style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
                             <input type="checkbox" id="bulkEditApplyTimeout"> Update Request Timeout
                         </label>
                         <div id="bulkEditTimeoutFields" style="display: none; margin-top: 0.5rem;">
@@ -1199,8 +1239,8 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Field: Peak/Off-Peak Request Frequency -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
-                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                    <div style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
                             <input type="checkbox" id="bulkEditApplyPeak"> Update Peak/Off-Peak Request Frequency
                         </label>
                         <div id="bulkEditPeakFields" style="display: none; margin-top: 0.5rem;">
@@ -1242,8 +1282,8 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Field: Notifications & Options -->
-                    <div style="background: rgba(15, 23, 42, 0.6); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
-                        <label class="checkbox-label" style="font-weight: 600; color: #fff; margin-bottom: 0.5rem; min-height: auto;">
+                    <div style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label" style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
                             <input type="checkbox" id="bulkEditApplyNotifications"> Update Notification & Strip Tags Settings
                         </label>
                         <div id="bulkEditNotificationsFields" style="display: none; margin-top: 0.5rem;">
@@ -1269,41 +1309,165 @@ $trashCount = count($trash);
         </div>
     </div>
 
-    <!-- History & Snapshot Modal -->
+    <!-- History & Snapshot Modal (with Interactive Red/Green Diff View & Version Comparison) -->
     <div class="modal-backdrop" id="historyModal">
-        <div class="modal-dialog" style="max-width: 900px;">
+        <div class="modal-dialog" style="max-width: 960px;">
             <div class="modal-header">
                 <div class="modal-title" id="historyModalTitle">History & Snapshots</div>
                 <button type="button" class="modal-close" onclick="closeModal('historyModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <!-- Top Actions Bar -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; background: rgba(15, 23, 42, 0.6); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; background: var(--bg-subtle); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.75rem;">
                     <div>
-                        <div id="historyLogMeta" style="font-size: 0.85rem; font-weight: 600; color: #fff;"></div>
+                        <div id="historyLogMeta" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);"></div>
                         <div style="font-size: 0.75rem; color: var(--text-muted);">Timestamped execution events & change history</div>
                     </div>
-                    <a id="downloadHistoryBtn" href="#" class="btn btn-secondary btn-sm" download>
-                        ⬇️ Download History Log (.txt)
-                    </a>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <a id="downloadHistoryBtn" href="#" class="btn btn-secondary btn-sm" download>
+                            ⬇️ Download Log (.txt)
+                        </a>
+                    </div>
                 </div>
 
-                <!-- Snapshot History Explorer -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                    <h4 style="font-size: 0.95rem; color: var(--success); margin: 0; display: flex; align-items: center; gap: 0.4rem;">
-                        <span>📸 Captured Snapshot View</span>
-                    </h4>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <!-- View Mode Toggle (Diff vs Raw Content) -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+                    <div style="display: flex; gap: 0.5rem;" id="historyViewModeBtns">
+                        <button type="button" class="btn btn-primary btn-sm" id="btnHistoryModeDiff">🔴/🟢 Red & Green Diff</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="btnHistoryModeRaw">📄 Raw Content</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="btnHistoryModeChanges">📋 Change Log (<span id="historyChangesCount">0</span>)</button>
+                    </div>
+
+                    <!-- Comparison Selectors (Diff Mode) -->
+                    <div id="historyDiffControls" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <label style="font-size: 0.8rem; color: var(--text-muted);">Compare:</label>
+                        <select id="diffVersionOld" class="form-control" style="min-height: 32px; padding: 0.2rem 0.5rem; font-size: 0.8rem; width: auto;">
+                            <option value="">Previous Snapshot</option>
+                        </select>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">vs</span>
+                        <select id="diffVersionNew" class="form-control" style="min-height: 32px; padding: 0.2rem 0.5rem; font-size: 0.8rem; width: auto;">
+                            <option value="">Latest Captured</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary btn-sm" id="btnComputeHistoryDiff" style="padding: 0.25rem 0.6rem;">⚡ Diff</button>
+                    </div>
+
+                    <!-- Raw Snapshot Selector (Raw Mode) -->
+                    <div id="historyRawControls" style="display: none; align-items: center; gap: 0.5rem;">
                         <label for="snapshotSelect" style="font-size: 0.8rem; color: var(--text-muted);">Version:</label>
-                        <select id="snapshotSelect" class="form-control" style="min-height: 34px; padding: 0.25rem 0.65rem; font-size: 0.825rem; width: auto;">
+                        <select id="snapshotSelect" class="form-control" style="min-height: 32px; padding: 0.2rem 0.5rem; font-size: 0.8rem; width: auto;">
                             <option value="">Latest Captured Snapshot</option>
                         </select>
                     </div>
                 </div>
-                <div class="diff-container" id="historySnapshot" style="max-height: 420px;"></div>
+
+                <!-- Container 1: Red/Green Diff Output Table -->
+                <div id="historyDiffViewContainer" style="max-height: 460px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-code); padding: 0.75rem;">
+                    <div id="historyDiffTable">Select snapshot versions to compute red/green diff...</div>
+                </div>
+
+                <!-- Container 2: Raw Text Snapshot -->
+                <div class="diff-container" id="historySnapshot" style="max-height: 460px; display: none;"></div>
+
+                <!-- Container 3: Monitor Change Events List -->
+                <div id="historyChangesContainer" style="max-height: 460px; overflow-y: auto; display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Changes</th>
+                                <th>Size</th>
+                                <th style="text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyChangesTableBody">
+                            <tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No detected changes recorded yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal('historyModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Detected Changes Explorer Modal -->
+    <div class="modal-backdrop" id="changesExplorerModal">
+        <div class="modal-dialog" style="max-width: 1040px;">
+            <div class="modal-header">
+                <div class="modal-title">🔍 Detected Changes Explorer</div>
+                <button type="button" class="modal-close" onclick="closeModal('changesExplorerModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Filter Bar -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; background: var(--bg-subtle); padding: 0.85rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; flex: 1;">
+                        <input type="text" id="changesSearchInput" class="form-control" placeholder="🔍 Search target name or group..." style="min-height: 36px; min-width: 200px; flex: 1;">
+                        <input type="date" id="changesDateInput" class="form-control" title="Filter changes by date" style="min-height: 36px; width: 145px;">
+                        <label class="checkbox-label" style="font-size: 0.8rem; min-height: auto; margin-bottom: 0;">
+                            <input type="checkbox" id="changesShowArchived"> Show Archived
+                        </label>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="changesRefreshBtn">🔄 Refresh</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="changesArchiveSelectedBtn" style="display: none;">📦 Archive Selected (<span id="changesSelectedCount">0</span>)</button>
+                        <button type="button" class="btn btn-secondary btn-sm" id="changesDeleteSelectedBtn" style="display: none;">🗑️ Delete Selected</button>
+                        <button type="button" class="btn btn-danger btn-sm" id="changesClearAllBtn">🔥 Clear All Changes</button>
+                    </div>
+                </div>
+
+                <!-- Changes Table -->
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table class="data-table" id="allChangesTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;" class="th-checkbox">
+                                    <input type="checkbox" id="selectAllChangesCheckbox" class="custom-checkbox" title="Select all changes">
+                                </th>
+                                <th style="width: 150px;">Timestamp</th>
+                                <th>Target / Name</th>
+                                <th>Group</th>
+                                <th>Changed Lines</th>
+                                <th>Snapshot Size</th>
+                                <th style="text-align: right; width: 180px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allChangesTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">Loading detected changes...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('changesExplorerModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Individual Change Event Detail Modal (Previous vs New Red/Green Preview) -->
+    <div class="modal-backdrop" id="changeDetailModal">
+        <div class="modal-dialog" style="max-width: 960px;">
+            <div class="modal-header">
+                <div class="modal-title" id="changeDetailTitle">Change Comparison</div>
+                <button type="button" class="modal-close" onclick="closeModal('changeDetailModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: var(--bg-subtle); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); flex-wrap: wrap; gap: 0.5rem;">
+                    <div id="changeDetailMeta" style="font-size: 0.85rem;"></div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="changeDetailArchiveBtn">📦 Archive</button>
+                        <button type="button" class="btn btn-danger btn-sm" id="changeDetailDeleteBtn">🗑️ Delete</button>
+                    </div>
+                </div>
+
+                <div id="changeDetailDiffContainer" style="max-height: 480px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-code); padding: 0.75rem;">
+                    <div id="changeDetailDiffContent">Loading change diff...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('changeDetailModal')">Close</button>
             </div>
         </div>
     </div>

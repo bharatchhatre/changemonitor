@@ -187,23 +187,35 @@ class Engine {
         }
 
         Storage::saveMonitor($monitor);
-        Storage::saveSnapshot($monitorId, $newSnapshot);
+        $newSnapFile = Storage::saveSnapshot($monitorId, $newSnapshot);
         Storage::recordCheckStats($monitorId, true, $hasChanged, $durationMs, $httpCode);
 
         // History Logging & Notifications
         if ($isInitial) {
             Storage::logHistory($monitorId, 'INITIALIZED', "Initial baseline snapshot captured (size: " . strlen($newSnapshot) . " chars)");
         } elseif ($hasChanged) {
+            // Compute rich contextual diff
+            require_once __DIR__ . '/diff_formatter.php';
+            $threshold = (int)($settings['diff_big_change_threshold_lines'] ?? 30);
+            $diffData = DiffFormatter::computeContextualDiff($oldSnapshot, $newSnapshot, $type, $threshold);
+
+            // Save structured change event
+            Storage::saveChangeEvent($monitorId, $oldSnapshot, $newSnapshot, $diffData, '', $newSnapFile);
+
             Storage::logHistory($monitorId, 'CHANGE_DETECTED', "Change detected. New hash: " . substr($newHash, 0, 10), $diff);
 
             if (!empty($settings['notify_on_change']) && !empty($monitor['notify_on_change'] ?? true)) {
-                $msg = "Change detected on target: *{$monitor['name']}*\nChecked At: " . date('Y-m-d H:i:s') . "\nType: {$type}";
+                $msg = "Change detected on target: *{$monitor['name']}*\nChecked At: " . date('Y-m-d H:i:s') . "\nExtraction Mode: {$type}";
                 Notifier::dispatch(
                     "🚨 Change Detected: {$monitor['name']}",
                     $msg,
                     [
                         'url' => $url,
                         'diff' => $diff,
+                        'old_snapshot' => $oldSnapshot,
+                        'new_snapshot' => $newSnapshot,
+                        'diff_data' => $diffData,
+                        'type' => $type,
                         'monitor' => $monitor,
                     ]
                 );

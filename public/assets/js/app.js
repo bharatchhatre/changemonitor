@@ -6,6 +6,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     // ==========================================
+    // --- THEME SWITCHER CONTROLLER ---
+    // ==========================================
+    const themeSelect = document.getElementById('themeSelect');
+    const savedTheme = localStorage.getItem('cm_theme') || 'dark';
+
+    function applyTheme(themeName) {
+        if (themeName === 'dark') {
+            document.documentElement.removeAttribute('data-theme');
+        } else {
+            document.documentElement.setAttribute('data-theme', themeName);
+        }
+        localStorage.setItem('cm_theme', themeName);
+        if (themeSelect) themeSelect.value = themeName;
+    }
+
+    // Apply saved theme immediately
+    applyTheme(savedTheme);
+
+    if (themeSelect) {
+        themeSelect.addEventListener('change', (e) => {
+            applyTheme(e.target.value);
+            showToast(`Theme changed to ${e.target.options[e.target.selectedIndex].text}`, 'info');
+        });
+    }
+
+    // ==========================================
     // --- CORE SELECTION & GROUP CONTROLLERS ---
     // ==========================================
 
@@ -356,38 +382,50 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.editMonitor = function(data) {
-        if (monitorForm) {
-            monitorForm.reset();
-            document.getElementById('monitorModalTitle').textContent = 'Edit Monitor';
-            document.getElementById('monitorId').value = data.id || '';
-            document.getElementById('monitorName').value = data.name || '';
-            document.getElementById('monitorUrl').value = data.url || '';
-            document.getElementById('monitorGroup').value = data.group || 'General';
-            document.getElementById('monitorType').value = data.type || 'html_full';
-            document.getElementById('monitorSelector').value = data.selector || '';
-            document.getElementById('monitorTemplate').value = data.browser_template || 'chrome_mac';
-            document.getElementById('monitorInterval').value = data.interval_mins || 15;
-            document.getElementById('monitorHeaders').value = data.custom_headers || '';
-            document.getElementById('monitorCookies').value = data.cookies || '';
-            document.getElementById('monitorStripTags').checked = !!data.strip_tags;
-            document.getElementById('monitorSimulateDelay').checked = !!data.simulate_delay;
-            document.getElementById('monitorNotifyChange').checked = (data.notify_on_change !== false);
-            document.getElementById('monitorNotifyError').checked = (data.notify_on_error !== false);
+        if (!data || !monitorForm) return;
+        monitorForm.reset();
+        
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val ?? '';
+        };
+        const setChecked = (id, bool) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = !!bool;
+        };
 
-            const peakEnabled = !!data.peak_schedule_enabled;
-            const peakCheckbox = document.getElementById('monitorPeakScheduleEnabled');
-            const peakFields = document.getElementById('peakScheduleFields');
-            if (peakCheckbox) peakCheckbox.checked = peakEnabled;
-            if (peakFields) peakFields.style.display = peakEnabled ? 'block' : 'none';
+        const modalTitle = document.getElementById('monitorModalTitle');
+        if (modalTitle) modalTitle.textContent = 'Edit Monitor';
 
-            if (document.getElementById('monitorPeakStart')) document.getElementById('monitorPeakStart').value = data.peak_start_hour ?? 9;
-            if (document.getElementById('monitorPeakEnd')) document.getElementById('monitorPeakEnd').value = data.peak_end_hour ?? 18;
-            if (document.getElementById('monitorPeakInterval')) document.getElementById('monitorPeakInterval').value = data.peak_interval_mins ?? 5;
-            if (document.getElementById('monitorOffpeakInterval')) document.getElementById('monitorOffpeakInterval').value = data.offpeak_interval_mins ?? 60;
+        setVal('monitorId', data.id);
+        setVal('monitorName', data.name);
+        setVal('monitorUrl', data.url);
+        setVal('monitorGroup', data.group || 'General');
+        setVal('monitorType', data.type || 'html_full');
+        setVal('monitorSelector', data.selector);
+        setVal('monitorTemplate', data.browser_template || 'chrome_mac');
+        setVal('monitorInterval', data.interval_mins || 15);
+        setVal('monitorHeaders', data.custom_headers);
+        setVal('monitorCookies', data.cookies);
+        setChecked('monitorStripTags', data.strip_tags);
+        setChecked('monitorNotifyChange', data.notify_on_change !== false);
+        setChecked('monitorNotifyError', data.notify_on_error !== false);
 
-            document.getElementById('previewOutput').style.display = 'none';
-            openModal('monitorModal');
-        }
+        const peakEnabled = !!data.peak_schedule_enabled;
+        const peakCheckbox = document.getElementById('monitorPeakScheduleEnabled');
+        const peakFields = document.getElementById('peakScheduleFields');
+        if (peakCheckbox) peakCheckbox.checked = peakEnabled;
+        if (peakFields) peakFields.style.display = peakEnabled ? 'block' : 'none';
+
+        setVal('monitorPeakStart', data.peak_start_hour ?? 9);
+        setVal('monitorPeakEnd', data.peak_end_hour ?? 18);
+        setVal('monitorPeakInterval', data.peak_interval_mins ?? 5);
+        setVal('monitorOffpeakInterval', data.offpeak_interval_mins ?? 60);
+
+        const previewOutput = document.getElementById('previewOutput');
+        if (previewOutput) previewOutput.style.display = 'none';
+
+        openModal('monitorModal');
     };
 
     // Toggle Peak Schedule UI
@@ -406,30 +444,31 @@ document.addEventListener('DOMContentLoaded', () => {
         monitorForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitBtn = monitorForm.querySelector('button[type="submit"]');
-            const origText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = 'Saving...';
+            const origText = submitBtn ? submitBtn.innerHTML : 'Save Target';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = 'Saving...';
+            }
 
             const payload = {
-                id: document.getElementById('monitorId').value,
-                name: document.getElementById('monitorName').value,
-                url: document.getElementById('monitorUrl').value,
+                id: document.getElementById('monitorId')?.value || '',
+                name: document.getElementById('monitorName')?.value || '',
+                url: document.getElementById('monitorUrl')?.value || '',
                 group: document.getElementById('monitorGroup')?.value || 'General',
-                type: document.getElementById('monitorType').value,
-                selector: document.getElementById('monitorSelector').value,
-                browser_template: document.getElementById('monitorTemplate').value,
-                interval_mins: parseInt(document.getElementById('monitorInterval').value, 10),
+                type: document.getElementById('monitorType')?.value || 'html_full',
+                selector: document.getElementById('monitorSelector')?.value || '',
+                browser_template: document.getElementById('monitorTemplate')?.value || 'chrome_mac',
+                interval_mins: parseInt(document.getElementById('monitorInterval')?.value || '15', 10),
                 peak_schedule_enabled: document.getElementById('monitorPeakScheduleEnabled')?.checked || false,
                 peak_start_hour: parseInt(document.getElementById('monitorPeakStart')?.value || '9', 10),
                 peak_end_hour: parseInt(document.getElementById('monitorPeakEnd')?.value || '18', 10),
                 peak_interval_mins: parseInt(document.getElementById('monitorPeakInterval')?.value || '5', 10),
                 offpeak_interval_mins: parseInt(document.getElementById('monitorOffpeakInterval')?.value || '60', 10),
-                custom_headers: document.getElementById('monitorHeaders').value,
-                cookies: document.getElementById('monitorCookies').value,
-                strip_tags: document.getElementById('monitorStripTags').checked,
-                simulate_delay: document.getElementById('monitorSimulateDelay').checked,
-                notify_on_change: document.getElementById('monitorNotifyChange').checked,
-                notify_on_error: document.getElementById('monitorNotifyError').checked,
+                custom_headers: document.getElementById('monitorHeaders')?.value || '',
+                cookies: document.getElementById('monitorCookies')?.value || '',
+                strip_tags: document.getElementById('monitorStripTags')?.checked || false,
+                notify_on_change: document.getElementById('monitorNotifyChange')?.checked !== false,
+                notify_on_error: document.getElementById('monitorNotifyError')?.checked !== false,
                 csrf_token: csrfToken,
             };
 
@@ -450,8 +489,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 showToast('Network error while saving', 'error');
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = origText;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = origText;
+                }
             }
         });
     }
@@ -634,49 +675,179 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Action: View History & Snapshot ---
     let currentHistoryMonitorId = null;
+    let currentHistorySnapshots = [];
+    let currentHistoryChanges = [];
+
     window.viewHistory = async function(id) {
         currentHistoryMonitorId = id;
         openModal('historyModal');
         const historySnapshot = document.getElementById('historySnapshot');
+        const historyDiffTable = document.getElementById('historyDiffTable');
         const historyTitle = document.getElementById('historyModalTitle');
         const snapshotSelect = document.getElementById('snapshotSelect');
+        const diffVersionOld = document.getElementById('diffVersionOld');
+        const diffVersionNew = document.getElementById('diffVersionNew');
         const historyLogMeta = document.getElementById('historyLogMeta');
+        const historyChangesCount = document.getElementById('historyChangesCount');
         const downloadHistoryBtn = document.getElementById('downloadHistoryBtn');
 
         if (downloadHistoryBtn) {
             downloadHistoryBtn.href = `api.php?action=download_history_log&id=${encodeURIComponent(id)}`;
         }
-        historySnapshot.textContent = 'Loading snapshot...';
+        if (historySnapshot) historySnapshot.textContent = 'Loading snapshot...';
+        if (historyDiffTable) historyDiffTable.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading diff comparison...</div>';
         if (snapshotSelect) snapshotSelect.innerHTML = '<option value="">Latest Captured Snapshot</option>';
+        if (diffVersionOld) diffVersionOld.innerHTML = '<option value="">Previous Snapshot</option>';
+        if (diffVersionNew) diffVersionNew.innerHTML = '<option value="">Latest Captured</option>';
+
+        // Set default to Diff View mode
+        setHistoryViewMode('diff');
 
         try {
             const res = await fetch(`api.php?action=get_history&id=${encodeURIComponent(id)}`);
             const data = await res.json();
             if (data.success) {
-                historyTitle.textContent = `History: ${data.monitor?.name || id}`;
-                historySnapshot.textContent = data.current_snapshot || data.latest_snapshot || 'No snapshot captured yet.';
+                historyTitle.textContent = `History & Diffs: ${data.monitor?.name || id}`;
+                if (historySnapshot) {
+                    historySnapshot.textContent = data.current_snapshot || data.latest_snapshot || 'No snapshot captured yet.';
+                }
                 
                 if (historyLogMeta) {
-                    historyLogMeta.textContent = `Total Checks: ${data.monitor?.check_count || 0} | Changes: ${data.monitor?.change_count || 0}`;
+                    historyLogMeta.textContent = `Total Checks: ${data.monitor?.check_count || 0} | Changes: ${data.monitor?.change_count || 0} | Group: ${data.monitor?.group || 'Ungrouped'}`;
                 }
 
-                // Populate Snapshots Dropdown
-                if (snapshotSelect && data.snapshots_list && data.snapshots_list.length > 0) {
-                    let opts = '<option value="">Latest Snapshot (Active)</option>';
-                    data.snapshots_list.forEach((snap, idx) => {
-                        opts += `<option value="${escapeHtml(snap.file)}">${escapeHtml(snap.time)} (${snap.size} bytes)${idx === 0 ? ' [Newest]' : ''}</option>`;
-                    });
-                    snapshotSelect.innerHTML = opts;
+                currentHistorySnapshots = data.snapshots_list || [];
+                currentHistoryChanges = data.changes || [];
+                if (historyChangesCount) {
+                    historyChangesCount.textContent = currentHistoryChanges.length;
                 }
+
+                // Populate Dropdowns
+                if (currentHistorySnapshots.length > 0) {
+                    let rawOpts = '<option value="">Latest Snapshot (Active)</option>';
+                    let oldOpts = '<option value="">(Auto: Previous to New)</option>';
+                    let newOpts = '<option value="">Latest Snapshot (Active)</option>';
+
+                    currentHistorySnapshots.forEach((snap, idx) => {
+                        const opt = `<option value="${escapeHtml(snap.file)}">${escapeHtml(snap.time)} (${snap.size}B)${idx === 0 ? ' [Latest]' : ''}</option>`;
+                        rawOpts += opt;
+                        newOpts += opt;
+                        if (idx > 0) {
+                            oldOpts += `<option value="${escapeHtml(snap.file)}">${escapeHtml(snap.time)} (${snap.size}B)${idx === 1 ? ' [Previous]' : ''}</option>`;
+                        }
+                    });
+
+                    if (snapshotSelect) snapshotSelect.innerHTML = rawOpts;
+                    if (diffVersionOld) diffVersionOld.innerHTML = oldOpts;
+                    if (diffVersionNew) diffVersionNew.innerHTML = newOpts;
+                }
+
+                // Render changes list table inside modal
+                renderHistoryChangesTable(currentHistoryChanges);
+
+                // Auto-load latest diff
+                loadHistoryDiff();
             } else {
-                historySnapshot.textContent = 'Failed to load history: ' + data.error;
+                if (historyDiffTable) historyDiffTable.innerHTML = `<div style="color: var(--danger); padding: 1rem;">Failed to load history: ${escapeHtml(data.error)}</div>`;
             }
         } catch (e) {
-            historySnapshot.textContent = 'Network error loading history: ' + e.message;
+            if (historyDiffTable) historyDiffTable.innerHTML = `<div style="color: var(--danger); padding: 1rem;">Network error: ${escapeHtml(e.message)}</div>`;
         }
     };
 
-    // Snapshot Dropdown Change Handler
+    function setHistoryViewMode(mode) {
+        const diffBtn = document.getElementById('btnHistoryModeDiff');
+        const rawBtn = document.getElementById('btnHistoryModeRaw');
+        const changesBtn = document.getElementById('btnHistoryModeChanges');
+        const diffControls = document.getElementById('historyDiffControls');
+        const rawControls = document.getElementById('historyRawControls');
+        const diffView = document.getElementById('historyDiffViewContainer');
+        const rawView = document.getElementById('historySnapshot');
+        const changesView = document.getElementById('historyChangesContainer');
+
+        if (diffBtn) diffBtn.className = mode === 'diff' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+        if (rawBtn) rawBtn.className = mode === 'raw' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+        if (changesBtn) changesBtn.className = mode === 'changes' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+
+        if (diffControls) diffControls.style.display = mode === 'diff' ? 'flex' : 'none';
+        if (rawControls) rawControls.style.display = mode === 'raw' ? 'flex' : 'none';
+
+        if (diffView) diffView.style.display = mode === 'diff' ? 'block' : 'none';
+        if (rawView) rawView.style.display = mode === 'raw' ? 'block' : 'none';
+        if (changesView) changesView.style.display = mode === 'changes' ? 'block' : 'none';
+    }
+
+    document.getElementById('btnHistoryModeDiff')?.addEventListener('click', () => setHistoryViewMode('diff'));
+    document.getElementById('btnHistoryModeRaw')?.addEventListener('click', () => setHistoryViewMode('raw'));
+    document.getElementById('btnHistoryModeChanges')?.addEventListener('click', () => setHistoryViewMode('changes'));
+
+    async function loadHistoryDiff() {
+        if (!currentHistoryMonitorId) return;
+        const historyDiffTable = document.getElementById('historyDiffTable');
+        const fileA = document.getElementById('diffVersionOld')?.value || (currentHistorySnapshots[1]?.file || '');
+        const fileB = document.getElementById('diffVersionNew')?.value || (currentHistorySnapshots[0]?.file || '');
+
+        if (!currentHistorySnapshots || currentHistorySnapshots.length === 0) {
+            historyDiffTable.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">No snapshots captured yet for this target.</div>';
+            return;
+        }
+
+        historyDiffTable.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">Computing line-by-line red/green diff...</div>';
+
+        try {
+            const params = new URLSearchParams({
+                action: 'get_history_diff',
+                id: currentHistoryMonitorId,
+                file_a: fileA,
+                file_b: fileB
+            });
+            const res = await fetch(`api.php?${params.toString()}`);
+            const data = await res.json();
+            if (data.success && data.html_table) {
+                historyDiffTable.innerHTML = data.html_table;
+            } else {
+                historyDiffTable.innerHTML = `<div style="color: var(--danger); padding: 1.5rem;">${escapeHtml(data.error || 'Failed to compute diff')}</div>`;
+            }
+        } catch (e) {
+            historyDiffTable.innerHTML = `<div style="color: var(--danger); padding: 1.5rem;">Network error computing diff: ${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    document.getElementById('btnComputeHistoryDiff')?.addEventListener('click', loadHistoryDiff);
+    document.getElementById('diffVersionOld')?.addEventListener('change', loadHistoryDiff);
+    document.getElementById('diffVersionNew')?.addEventListener('change', loadHistoryDiff);
+
+    function renderHistoryChangesTable(changes) {
+        const tbody = document.getElementById('historyChangesTableBody');
+        if (!tbody) return;
+        if (!changes || changes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No detected changes recorded yet.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        changes.forEach(chg => {
+            const timeStr = chg.timestamp ? new Date(chg.timestamp).toLocaleString() : '-';
+            const badge = `<span style="background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">+${chg.added_count || 0}</span> ` +
+                          `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">-${chg.removed_count || 0}</span>`;
+            const sizeStr = `${chg.old_size || 0}B &rarr; ${chg.new_size || 0}B`;
+            const archivedBadge = chg.archived ? '<span class="badge badge-paused" style="margin-left: 4px;">Archived</span>' : '';
+
+            html += `
+                <tr>
+                    <td style="font-size: 0.8rem; color: var(--text-primary); white-space: nowrap;">${escapeHtml(timeStr)}${archivedBadge}</td>
+                    <td>${badge}</td>
+                    <td style="font-size: 0.775rem; color: var(--text-muted);">${sizeStr}</td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button class="btn btn-primary btn-sm" onclick="openChangeDetail('${escapeHtml(chg.id)}', '${escapeHtml(chg.monitor_id)}')">🔍 Inspect Diff</button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    // Snapshot Dropdown Change Handler (Raw Mode)
     const snapshotSelect = document.getElementById('snapshotSelect');
     if (snapshotSelect) {
         snapshotSelect.addEventListener('change', async (e) => {
@@ -723,6 +894,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 notify_on_change: document.getElementById('settingNotifyChange').checked,
                 notify_on_error: document.getElementById('settingNotifyError').checked,
                 default_interval_mins: parseInt(document.getElementById('settingDefaultInterval').value, 10),
+                diff_big_change_threshold_lines: parseInt(document.getElementById('settingBigChangeThreshold')?.value || '30', 10),
                 new_password: document.getElementById('settingNewPassword').value,
                 csrf_token: csrfToken,
             };
@@ -840,22 +1012,60 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Searchable & Filterable Error Logs Controller ---
     const logsTableBody = document.getElementById('logsTableBody');
     const logSearchInput = document.getElementById('logSearchInput');
+    const logDateInput = document.getElementById('logDateInput');
     const logLevelSelect = document.getElementById('logLevelSelect');
     const logCategorySelect = document.getElementById('logCategorySelect');
     const refreshLogsBtn = document.getElementById('refreshLogsBtn');
     const clearLogsBtn = document.getElementById('clearLogsBtn');
+    const deleteSelectedLogsBtn = document.getElementById('deleteSelectedLogsBtn');
+    const selectedLogsCount = document.getElementById('selectedLogsCount');
+    const selectAllLogsCheckbox = document.getElementById('selectAllLogsCheckbox');
+
+    async function refreshDashboardStats() {
+        try {
+            const res = await fetch('api.php?action=get_stats');
+            const data = await res.json();
+            if (data.success && data.stats) {
+                const statValChanges = document.getElementById('statValChanges');
+                const statValErrors = document.getElementById('statValErrors');
+                if (statValChanges) statValChanges.textContent = Number(data.stats.total_changes || 0).toLocaleString();
+                if (statValErrors) statValErrors.textContent = Number(data.stats.total_errors || 0).toLocaleString();
+            }
+        } catch (e) {
+            console.error('Failed to refresh dashboard stats', e);
+        }
+    }
+
+    function updateLogsSelectionUI() {
+        const checked = document.querySelectorAll('.log-checkbox:checked');
+        const count = checked.length;
+        if (selectedLogsCount) selectedLogsCount.textContent = count;
+        if (deleteSelectedLogsBtn) {
+            deleteSelectedLogsBtn.style.display = count > 0 ? 'inline-flex' : 'none';
+        }
+    }
+
+    if (selectAllLogsCheckbox) {
+        selectAllLogsCheckbox.addEventListener('change', () => {
+            const boxes = document.querySelectorAll('.log-checkbox');
+            boxes.forEach(b => b.checked = selectAllLogsCheckbox.checked);
+            updateLogsSelectionUI();
+        });
+    }
 
     async function loadLogs() {
         if (!logsTableBody) return;
         const search = logSearchInput ? logSearchInput.value.trim() : '';
         const level = logLevelSelect ? logLevelSelect.value : '';
         const category = logCategorySelect ? logCategorySelect.value : '';
+        const date = logDateInput ? logDateInput.value.trim() : '';
 
         const params = new URLSearchParams({
             action: 'get_logs',
             search: search,
             level: level,
             category: category,
+            date: date,
             limit: 200
         });
 
@@ -863,12 +1073,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`api.php?${params.toString()}`);
             const data = await res.json();
             if (!data.success) {
-                logsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 1.5rem;">Error: ${escapeHtml(data.error)}</td></tr>`;
+                logsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1.5rem;">Error: ${escapeHtml(data.error)}</td></tr>`;
                 return;
             }
 
             if (!data.logs || data.logs.length === 0) {
-                logsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">No logs found matching criteria.</td></tr>`;
+                logsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No logs found matching criteria${date ? ` for date ${escapeHtml(date)}` : ''}.</td></tr>`;
                 return;
             }
 
@@ -885,6 +1095,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 html += `
                     <tr>
+                        <td class="td-checkbox">
+                            <input type="checkbox" class="custom-checkbox log-checkbox" value="${escapeHtml(row.id || '')}">
+                        </td>
                         <td style="font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">${escapeHtml(row.timestamp || '-')}</td>
                         <td>${levelBadge}</td>
                         <td><span class="badge badge-type">${escapeHtml(row.category || 'SYSTEM')}</span></td>
@@ -893,17 +1106,77 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${contextStr}
                         </td>
                         <td style="font-size: 0.775rem; color: var(--text-muted);">${escapeHtml(row.ip || '-')}</td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <button class="btn btn-danger btn-sm" onclick="deleteSingleLog('${escapeHtml(row.id || '')}')" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">🗑️</button>
+                        </td>
                     </tr>
                 `;
             });
             logsTableBody.innerHTML = html;
+
+            document.querySelectorAll('.log-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateLogsSelectionUI);
+            });
+            if (selectAllLogsCheckbox) selectAllLogsCheckbox.checked = false;
+            updateLogsSelectionUI();
         } catch (e) {
-            logsTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--danger); padding: 1.5rem;">Network error fetching logs</td></tr>`;
+            logsTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1.5rem;">Network error fetching logs</td></tr>`;
         }
+    }
+
+    window.deleteSingleLog = async function(id) {
+        if (!id) return;
+        try {
+            const res = await fetch('api.php?action=delete_logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify({ log_ids: [id], csrf_token: csrfToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Log entry deleted', 'success');
+                loadLogs();
+                refreshDashboardStats();
+            } else {
+                showToast(data.error || 'Failed to delete log', 'error');
+            }
+        } catch (e) {
+            showToast('Network error deleting log', 'error');
+        }
+    };
+
+    if (deleteSelectedLogsBtn) {
+        deleteSelectedLogsBtn.addEventListener('click', async () => {
+            const checked = Array.from(document.querySelectorAll('.log-checkbox:checked')).map(cb => cb.value);
+            if (checked.length === 0) return;
+            if (!confirm(`Delete ${checked.length} selected log entries?`)) return;
+
+            try {
+                const res = await fetch('api.php?action=delete_logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify({ log_ids: checked, csrf_token: csrfToken })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Deleted ${data.count} log entries`, 'success');
+                    loadLogs();
+                    refreshDashboardStats();
+                } else {
+                    showToast(data.error || 'Failed to delete logs', 'error');
+                }
+            } catch (e) {
+                showToast('Network error deleting logs', 'error');
+            }
+        });
     }
 
     if (refreshLogsBtn) {
         refreshLogsBtn.addEventListener('click', loadLogs);
+    }
+
+    if (logDateInput) {
+        logDateInput.addEventListener('change', loadLogs);
     }
 
     if (logLevelSelect) {
@@ -931,6 +1204,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    window.openLogsForDate = function(dateStr) {
+        if (logDateInput) {
+            logDateInput.value = dateStr;
+        }
+        const logsTabBtn = document.querySelector('.tab-btn[data-tab="tab-logs"]');
+        if (logsTabBtn) logsTabBtn.click();
+        loadLogs();
+    };
+
     if (clearLogsBtn) {
         clearLogsBtn.addEventListener('click', async () => {
             if (!confirm('Are you sure you want to clear all server logs?')) return;
@@ -944,6 +1226,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     showToast('Logs cleared', 'success');
                     loadLogs();
+                    refreshDashboardStats();
                 } else {
                     showToast(data.error || 'Failed to clear logs', 'error');
                 }
@@ -952,6 +1235,324 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // ==========================================
+    // --- CHANGES DETECTED EXPLORER CONTROLLER ---
+    // ==========================================
+    const statCardChanges = document.getElementById('statCardChanges');
+    const statCardErrors = document.getElementById('statCardErrors');
+    const changesSearchInput = document.getElementById('changesSearchInput');
+    const changesDateInput = document.getElementById('changesDateInput');
+    const changesShowArchived = document.getElementById('changesShowArchived');
+    const changesRefreshBtn = document.getElementById('changesRefreshBtn');
+    const changesClearAllBtn = document.getElementById('changesClearAllBtn');
+    const changesArchiveSelectedBtn = document.getElementById('changesArchiveSelectedBtn');
+    const changesDeleteSelectedBtn = document.getElementById('changesDeleteSelectedBtn');
+    const changesSelectedCount = document.getElementById('changesSelectedCount');
+    const selectAllChangesCheckbox = document.getElementById('selectAllChangesCheckbox');
+    const allChangesTableBody = document.getElementById('allChangesTableBody');
+
+    let allLoadedChanges = [];
+    let currentDetailEvent = null;
+
+    // Click on stat card Changes Detected -> open explorer
+    if (statCardChanges) {
+        statCardChanges.addEventListener('click', () => {
+            openChangesExplorer();
+        });
+    }
+
+    // Click on stat card Errors Encountered -> switch to Logs Tab
+    if (statCardErrors) {
+        statCardErrors.addEventListener('click', () => {
+            const logsTabBtn = document.querySelector('.tab-btn[data-tab="tab-logs"]');
+            if (logsTabBtn) logsTabBtn.click();
+        });
+    }
+
+    window.openChangesExplorer = function(targetMonitorId = null) {
+        openModal('changesExplorerModal');
+        loadAllChanges(targetMonitorId);
+    };
+
+    window.openChangesForDate = function(dateStr) {
+        if (changesDateInput) {
+            changesDateInput.value = dateStr;
+        }
+        openChangesExplorer();
+    };
+
+    function updateChangesSelectionUI() {
+        const checked = document.querySelectorAll('.change-row-checkbox:checked');
+        const count = checked.length;
+        if (changesSelectedCount) changesSelectedCount.textContent = count;
+        if (changesArchiveSelectedBtn) changesArchiveSelectedBtn.style.display = count > 0 ? 'inline-flex' : 'none';
+        if (changesDeleteSelectedBtn) changesDeleteSelectedBtn.style.display = count > 0 ? 'inline-flex' : 'none';
+    }
+
+    if (selectAllChangesCheckbox) {
+        selectAllChangesCheckbox.addEventListener('change', () => {
+            const boxes = document.querySelectorAll('.change-row-checkbox');
+            boxes.forEach(b => b.checked = selectAllChangesCheckbox.checked);
+            updateChangesSelectionUI();
+        });
+    }
+
+    async function loadAllChanges(monitorId = null) {
+        if (!allChangesTableBody) return;
+        const search = changesSearchInput ? changesSearchInput.value.trim() : '';
+        const date = changesDateInput ? changesDateInput.value.trim() : '';
+        const includeArchived = changesShowArchived ? (changesShowArchived.checked ? '1' : '0') : '0';
+
+        allChangesTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">Loading detected changes...</td></tr>';
+
+        const params = new URLSearchParams({
+            action: 'get_changes_list',
+            include_archived: includeArchived,
+            search: search,
+            date: date,
+            limit: 200
+        });
+        if (monitorId) params.append('monitor_id', monitorId);
+
+        try {
+            const res = await fetch(`api.php?${params.toString()}`);
+            const data = await res.json();
+            if (!data.success) {
+                allChangesTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 2rem;">Error: ${escapeHtml(data.error)}</td></tr>`;
+                return;
+            }
+
+            allLoadedChanges = data.changes || [];
+            if (allLoadedChanges.length === 0) {
+                allChangesTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2.5rem;">No detected changes recorded yet${date ? ` for date ${escapeHtml(date)}` : ''}.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            allLoadedChanges.forEach(chg => {
+                const timeStr = chg.timestamp ? new Date(chg.timestamp).toLocaleString() : '-';
+                const badge = `<span style="background: #dcfce7; color: #15803d; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;">+${chg.added_count || 0}</span> ` +
+                              `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;">-${chg.removed_count || 0}</span>`;
+                const sizeStr = `${chg.old_size || 0}B &rarr; ${chg.new_size || 0}B`;
+                const isArchived = !empty(chg.archived);
+                const archivedBadge = isArchived ? '<span class="badge badge-paused" style="margin-left: 6px;">Archived</span>' : '';
+
+                html += `
+                    <tr data-event-id="${escapeHtml(chg.id)}">
+                        <td class="td-checkbox">
+                            <input type="checkbox" class="custom-checkbox change-row-checkbox" value="${escapeHtml(chg.id)}">
+                        </td>
+                        <td style="font-size: 0.8rem; color: var(--text-primary); white-space: nowrap;">
+                            ${escapeHtml(timeStr)}${archivedBadge}
+                        </td>
+                        <td>
+                            <strong>${escapeHtml(chg.monitor_name || 'Target')}</strong>
+                        </td>
+                        <td>
+                            <span class="badge badge-group">📁 ${escapeHtml(chg.group || 'Ungrouped')}</span>
+                        </td>
+                        <td>${badge}</td>
+                        <td style="font-size: 0.775rem; color: var(--text-muted); font-family: var(--font-mono);">${sizeStr}</td>
+                        <td style="text-align: right; white-space: nowrap;">
+                            <button class="btn btn-primary btn-sm" onclick="openChangeDetail('${escapeHtml(chg.id)}', '${escapeHtml(chg.monitor_id)}')">🔍 Inspect Diff</button>
+                            <button class="btn btn-secondary btn-sm" onclick="toggleArchiveChange('${escapeHtml(chg.id)}', ${isArchived ? 'false' : 'true'})" title="${isArchived ? 'Unarchive' : 'Archive'}">📦</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteSingleChange('${escapeHtml(chg.id)}')" title="Delete Record">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            allChangesTableBody.innerHTML = html;
+
+            document.querySelectorAll('.change-row-checkbox').forEach(cb => {
+                cb.addEventListener('change', updateChangesSelectionUI);
+            });
+            if (selectAllChangesCheckbox) selectAllChangesCheckbox.checked = false;
+            updateChangesSelectionUI();
+        } catch (e) {
+            allChangesTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 2rem;">Network error fetching changes: ${escapeHtml(e.message)}</td></tr>`;
+        }
+    }
+
+    function empty(val) {
+        return !val || val === '0' || val === 0 || val === false;
+    }
+
+    if (changesRefreshBtn) changesRefreshBtn.addEventListener('click', () => loadAllChanges());
+    if (changesDateInput) changesDateInput.addEventListener('change', () => loadAllChanges());
+    if (changesShowArchived) changesShowArchived.addEventListener('change', () => loadAllChanges());
+    if (changesSearchInput) {
+        changesSearchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => loadAllChanges(), 300);
+        });
+    }
+
+    window.toggleArchiveChange = async function(eventId, archive) {
+        try {
+            const res = await fetch('api.php?action=archive_changes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify({ event_ids: [eventId], archive: archive, csrf_token: csrfToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast(archive ? 'Change archived' : 'Change unarchived', 'success');
+                loadAllChanges();
+            } else {
+                showToast(data.error || 'Failed to update archive state', 'error');
+            }
+        } catch (e) {
+            showToast('Network error archiving change', 'error');
+        }
+    };
+
+    window.deleteSingleChange = async function(eventId) {
+        if (!confirm('Are you sure you want to permanently delete this change record?')) return;
+        try {
+            const res = await fetch('api.php?action=delete_changes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify({ event_ids: [eventId], csrf_token: csrfToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Change record deleted', 'success');
+                loadAllChanges();
+                refreshDashboardStats();
+            } else {
+                showToast(data.error || 'Failed to delete change', 'error');
+            }
+        } catch (e) {
+            showToast('Network error deleting change', 'error');
+        }
+    };
+
+    if (changesArchiveSelectedBtn) {
+        changesArchiveSelectedBtn.addEventListener('click', async () => {
+            const checked = Array.from(document.querySelectorAll('.change-row-checkbox:checked')).map(cb => cb.value);
+            if (checked.length === 0) return;
+            try {
+                const res = await fetch('api.php?action=archive_changes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify({ event_ids: checked, archive: true, csrf_token: csrfToken })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Archived ${data.count} change record(s)`, 'success');
+                    loadAllChanges();
+                } else {
+                    showToast(data.error || 'Failed to archive changes', 'error');
+                }
+            } catch (e) {
+                showToast('Network error archiving changes', 'error');
+            }
+        });
+    }
+
+    if (changesDeleteSelectedBtn) {
+        changesDeleteSelectedBtn.addEventListener('click', async () => {
+            const checked = Array.from(document.querySelectorAll('.change-row-checkbox:checked')).map(cb => cb.value);
+            if (checked.length === 0) return;
+            if (!confirm(`Permanently delete ${checked.length} change record(s)?`)) return;
+
+            try {
+                const res = await fetch('api.php?action=delete_changes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify({ event_ids: checked, csrf_token: csrfToken })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Deleted ${data.count} change record(s)`, 'success');
+                    loadAllChanges();
+                    refreshDashboardStats();
+                } else {
+                    showToast(data.error || 'Failed to delete changes', 'error');
+                }
+            } catch (e) {
+                showToast('Network error deleting changes', 'error');
+            }
+        });
+    }
+
+    if (changesClearAllBtn) {
+        changesClearAllBtn.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to delete ALL recorded change history across all monitors?')) return;
+            try {
+                const res = await fetch('api.php?action=clear_all_changes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                    body: JSON.stringify({ csrf_token: csrfToken })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('All change records cleared', 'success');
+                    loadAllChanges();
+                    refreshDashboardStats();
+                } else {
+                    showToast(data.error || 'Failed to clear changes', 'error');
+                }
+            } catch (e) {
+                showToast('Network error clearing changes', 'error');
+            }
+        });
+    }
+
+    // ==========================================
+    // --- INDIVIDUAL CHANGE DETAIL MODAL CONTROLLER ---
+    // ==========================================
+    window.openChangeDetail = async function(eventId, monitorId) {
+        openModal('changeDetailModal');
+        const titleEl = document.getElementById('changeDetailTitle');
+        const metaEl = document.getElementById('changeDetailMeta');
+        const contentEl = document.getElementById('changeDetailDiffContent');
+        const archiveBtn = document.getElementById('changeDetailArchiveBtn');
+        const deleteBtn = document.getElementById('changeDetailDeleteBtn');
+
+        if (contentEl) contentEl.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading previous vs new diff preview...</div>';
+
+        try {
+            const params = new URLSearchParams({
+                action: 'get_change_diff',
+                event_id: eventId,
+                monitor_id: monitorId
+            });
+            const res = await fetch(`api.php?${params.toString()}`);
+            const data = await res.json();
+            if (data.success) {
+                currentDetailEvent = data.event;
+                if (titleEl) titleEl.textContent = `Change Comparison: ${data.event.monitor_name || 'Target'}`;
+                if (metaEl) {
+                    const timeStr = data.event.timestamp ? new Date(data.event.timestamp).toLocaleString() : '-';
+                    metaEl.innerHTML = `<strong>Detected:</strong> ${escapeHtml(timeStr)} | <strong>Target:</strong> ${escapeHtml(data.event.monitor_name)} (<code>${escapeHtml(data.event.group || 'Ungrouped')}</code>) | <strong>Summary:</strong> <span style="color: #22c55e;">+${data.diff_data?.added_count || 0} added</span> / <span style="color: #ef4444;">-${data.diff_data?.removed_count || 0} removed</span>`;
+                }
+                if (contentEl) {
+                    contentEl.innerHTML = data.html_table || '<div style="color: var(--text-muted);">No diff content available.</div>';
+                }
+
+                if (archiveBtn) {
+                    archiveBtn.textContent = data.event.archived ? '📦 Unarchive' : '📦 Archive';
+                    archiveBtn.onclick = async () => {
+                        await toggleArchiveChange(eventId, !data.event.archived);
+                        closeModal('changeDetailModal');
+                    };
+                }
+
+                if (deleteBtn) {
+                    deleteBtn.onclick = async () => {
+                        await deleteSingleChange(eventId);
+                        closeModal('changeDetailModal');
+                    };
+                }
+            } else {
+                if (contentEl) contentEl.innerHTML = `<div style="color: var(--danger); padding: 1.5rem;">Error: ${escapeHtml(data.error)}</div>`;
+            }
+        } catch (e) {
+            if (contentEl) contentEl.innerHTML = `<div style="color: var(--danger); padding: 1.5rem;">Network error loading diff preview: ${escapeHtml(e.message)}</div>`;
+        }
+    };
 
     // ==========================================
     // --- BULK ACTION BUTTON EVENT LISTENERS ---
