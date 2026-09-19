@@ -188,19 +188,141 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Tab Navigation with State Persistence ---
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabPanes = document.querySelectorAll('.tab-pane');
+    // ==========================================
+    // --- MOBILE DRAWER NAVIGATION CONTROLLER ---
+    // ==========================================
+    const mobileDrawerOpenBtn = document.getElementById('mobileDrawerOpenBtn');
+    const mobileDrawerCloseBtn = document.getElementById('mobileDrawerCloseBtn');
+    const mobileDrawerBackdrop = document.getElementById('mobileDrawerBackdrop');
 
+    function openMobileDrawer() {
+        if (mobileDrawerBackdrop) {
+            mobileDrawerBackdrop.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeMobileDrawer() {
+        if (mobileDrawerBackdrop) {
+            mobileDrawerBackdrop.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+    }
+
+    if (mobileDrawerOpenBtn) mobileDrawerOpenBtn.addEventListener('click', openMobileDrawer);
+    if (mobileDrawerCloseBtn) mobileDrawerCloseBtn.addEventListener('click', closeMobileDrawer);
+
+    if (mobileDrawerBackdrop) {
+        mobileDrawerBackdrop.addEventListener('click', (e) => {
+            if (e.target === mobileDrawerBackdrop) closeMobileDrawer();
+        });
+    }
+
+    // ==========================================
+    // --- UNREAD STAT CARD HIGHLIGHT SYSTEM ---
+    // ==========================================
+    const statCardTargets = document.getElementById('statCardTargets');
+    const statCardChecks = document.getElementById('statCardChecks');
+    const statCardChanges = document.getElementById('statCardChanges');
+    const statCardErrors = document.getElementById('statCardErrors');
+    const unreadBadgeChanges = document.getElementById('unreadBadgeChanges');
+    const unreadBadgeErrors = document.getElementById('unreadBadgeErrors');
+    const statValChanges = document.getElementById('statValChanges');
+    const statValErrors = document.getElementById('statValErrors');
+
+    if (statCardTargets) {
+        statCardTargets.addEventListener('click', () => {
+            activateTab('tab-monitors');
+            activateSubtab('subtab-active');
+        });
+    }
+
+    if (statCardChecks) {
+        statCardChecks.addEventListener('click', () => {
+            activateTab('tab-analytics');
+        });
+    }
+
+    if (statCardChanges) {
+        statCardChanges.addEventListener('click', () => {
+            markChangesSeen();
+            if (typeof openChangesExplorer === 'function') openChangesExplorer();
+        });
+    }
+    if (statCardErrors) {
+        statCardErrors.addEventListener('click', () => {
+            markErrorsSeen();
+            const logLevelSelect = document.getElementById('logLevelSelect');
+            if (logLevelSelect) {
+                logLevelSelect.value = 'ERROR';
+            }
+            activateTab('tab-logs');
+            if (typeof loadLogs === 'function') {
+                loadLogs();
+            }
+        });
+    }
+
+    function checkUnreadStats() {
+        const currentChanges = parseInt((statValChanges?.textContent || '0').replace(/,/g, ''), 10) || 0;
+        const currentErrors = parseInt((statValErrors?.textContent || '0').replace(/,/g, ''), 10) || 0;
+
+        const lastSeenChanges = parseInt(localStorage.getItem('cm_last_seen_changes') || '-1', 10);
+        const lastSeenErrors = parseInt(localStorage.getItem('cm_last_seen_errors') || '-1', 10);
+
+        // If first visit, initialize last_seen to current
+        if (lastSeenChanges === -1) {
+            localStorage.setItem('cm_last_seen_changes', currentChanges.toString());
+        } else if (currentChanges > lastSeenChanges && statCardChanges) {
+            statCardChanges.classList.add('stat-card-unread');
+            if (unreadBadgeChanges) unreadBadgeChanges.style.display = 'inline-block';
+        }
+
+        if (lastSeenErrors === -1) {
+            localStorage.setItem('cm_last_seen_errors', currentErrors.toString());
+        } else if (currentErrors > lastSeenErrors && statCardErrors) {
+            statCardErrors.classList.add('stat-card-unread');
+            if (unreadBadgeErrors) unreadBadgeErrors.style.display = 'inline-block';
+        }
+    }
+
+    function markChangesSeen() {
+        const currentChanges = parseInt((statValChanges?.textContent || '0').replace(/,/g, ''), 10) || 0;
+        localStorage.setItem('cm_last_seen_changes', currentChanges.toString());
+        if (statCardChanges) statCardChanges.classList.remove('stat-card-unread');
+        if (unreadBadgeChanges) unreadBadgeChanges.style.display = 'none';
+    }
+
+    function markErrorsSeen() {
+        const currentErrors = parseInt((statValErrors?.textContent || '0').replace(/,/g, ''), 10) || 0;
+        localStorage.setItem('cm_last_seen_errors', currentErrors.toString());
+        if (statCardErrors) statCardErrors.classList.remove('stat-card-unread');
+        if (unreadBadgeErrors) unreadBadgeErrors.style.display = 'none';
+    }
+
+    checkUnreadStats();
+
+    // --- Tab Navigation with State Persistence ---
     function activateTab(targetId) {
         if (!targetId) return;
-        const btn = document.querySelector(`.tab-btn[data-tab="${targetId}"]`);
         const targetPane = document.getElementById(targetId);
-        if (btn && targetPane) {
-            tabButtons.forEach(b => b.classList.remove('active'));
-            tabPanes.forEach(p => p.style.display = 'none');
-            btn.classList.add('active');
+        if (targetPane) {
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                if (b.getAttribute('data-tab') === targetId) b.classList.add('active');
+                else b.classList.remove('active');
+            });
+            document.querySelectorAll('.drawer-item[data-tab]').forEach(d => {
+                if (d.getAttribute('data-tab') === targetId) d.classList.add('active');
+                else d.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
             targetPane.style.display = 'block';
+
+            // Mark error stat seen if logs tab opened
+            if (targetId === 'tab-logs') {
+                markErrorsSeen();
+            }
+
             try {
                 sessionStorage.setItem('active_tab', targetId);
                 history.replaceState(null, '', '#' + targetId.replace('tab-', ''));
@@ -208,11 +330,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    tabButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetId = btn.getAttribute('data-tab');
+    // Global event delegation for desktop tab buttons and mobile drawer menu items
+    document.addEventListener('click', (e) => {
+        const tabBtn = e.target.closest('.tab-btn[data-tab]');
+        if (tabBtn) {
+            e.preventDefault();
+            const targetId = tabBtn.getAttribute('data-tab');
             activateTab(targetId);
-        });
+            return;
+        }
+
+        const drawerItem = e.target.closest('.drawer-item[data-tab]');
+        if (drawerItem) {
+            e.preventDefault();
+            const targetId = drawerItem.getAttribute('data-tab');
+            activateTab(targetId);
+            closeMobileDrawer();
+            return;
+        }
     });
 
     // --- Sub-Tab Navigation (Active vs Inactive vs Trash) with State Persistence ---
@@ -1349,8 +1484,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // --- CHANGES DETECTED EXPLORER CONTROLLER ---
     // ==========================================
-    const statCardChanges = document.getElementById('statCardChanges');
-    const statCardErrors = document.getElementById('statCardErrors');
     const changesSearchInput = document.getElementById('changesSearchInput');
     const changesDateInput = document.getElementById('changesDateInput');
     const changesShowArchived = document.getElementById('changesShowArchived');
@@ -1365,20 +1498,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let allLoadedChanges = [];
     let currentDetailEvent = null;
 
-    // Click on stat card Changes Detected -> open explorer
-    if (statCardChanges) {
-        statCardChanges.addEventListener('click', () => {
-            openChangesExplorer();
-        });
-    }
-
-    // Click on stat card Errors Encountered -> switch to Logs Tab
-    if (statCardErrors) {
-        statCardErrors.addEventListener('click', () => {
-            const logsTabBtn = document.querySelector('.tab-btn[data-tab="tab-logs"]');
-            if (logsTabBtn) logsTabBtn.click();
-        });
-    }
+    // Click on stat card Changes Detected -> open explorer (handled via event listener near line 269)
+    // Click on stat card Errors Encountered -> switch to Logs Tab (handled via event listener near line 272)
 
     window.openChangesExplorer = function(targetMonitorId = null) {
         openModal('changesExplorerModal');

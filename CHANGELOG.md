@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-09-19]
 ### Added
+- **Mobile Navigation Drawer & Relocated Primary Controls**:
+  - Replaced top tab bar on mobile screens (`<768px`) with an animated slide-out **Mobile App Navigation Drawer** triggered via header menu toggle (`☰ Menu`).
+  - Relocated primary monitor actions (**▶ Run All Checks**, **➕ Bulk Add**, **+ Add Target**) directly into the Monitors panel header.
+  - Relocated **🎨 UI Theme Switcher** dropdown to a page footer with copyright and engine info.
+- **Unread Stat Card Pulse & Highlight System**:
+  - Automated tracking of `last_seen` counts for `total_changes` and `total_errors` in `localStorage`.
+  - Highlights **Changes Detected 🔍** and **Errors Encountered ⚠️** cards with glowing animated border pulse and a high-visibility `NEW` badge whenever new metrics exceed last seen values.
+  - Automatically clears unread highlight badges once the user clicks or views the corresponding explorer/log tab.
 - **"Remember Me" Persistent Authentication**:
   - Secure persistent session authentication on trusted browsers via HTTP-only, `SameSite=Lax` `cm_remember` cookie token.
   - Automatic session re-authentication upon session expiration using SHA-256 token verification stored in `data/auth.json`.
