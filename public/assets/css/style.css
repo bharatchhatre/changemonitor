@@ -724,6 +724,73 @@ textarea.form-control {
     display: block;
 }
 
+.diff-table-row {
+    transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.diff-table-row:hover {
+    filter: brightness(0.92);
+    cursor: pointer;
+}
+
+/* Raw Code Table with Line Numbers */
+.raw-code-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 0.825rem;
+    line-height: 1.5;
+}
+
+.raw-code-row {
+    transition: background-color 0.15s ease;
+}
+
+.raw-code-row:hover {
+    background: var(--bg-card-hover);
+}
+
+.raw-line-number {
+    width: 55px;
+    min-width: 55px;
+    text-align: right;
+    padding: 2px 10px;
+    color: var(--text-muted);
+    border-right: 1px solid var(--border-color);
+    user-select: none;
+    vertical-align: top;
+    background: var(--bg-subtle);
+    font-size: 0.775rem;
+    font-weight: 500;
+}
+
+.raw-line-content {
+    padding: 2px 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    vertical-align: top;
+    color: var(--text-primary);
+}
+
+@keyframes rawLinePulse {
+    0% {
+        background-color: rgba(2, 132, 199, 0.45);
+        box-shadow: inset 0 0 0 2px var(--accent-primary), 0 0 16px rgba(56, 189, 248, 0.5);
+    }
+    30% {
+        background-color: rgba(2, 132, 199, 0.35);
+        box-shadow: inset 0 0 0 2px var(--accent-primary), 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+.raw-line-flash {
+    animation: rawLinePulse 3s ease-out forwards;
+}
+
 /* Toast Notifications */
 .toast-container {
     position: fixed;
@@ -914,33 +981,120 @@ textarea.form-control {
     border-color: rgba(124, 58, 237, 0.25);
 }
 
-/* Responsive Breakpoints */
+/* Responsive Breakpoints & Mobile App View Optimization */
 @media (max-width: 768px) {
+    .app-container {
+        padding: 0.75rem 0.5rem 2.5rem 0.5rem;
+    }
     .app-header {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
+        align-items: stretch;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+    }
+    .brand-area {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .brand-title {
+        font-size: 1.1rem;
+    }
+    .brand-subtitle {
+        font-size: 0.7rem;
     }
     .nav-actions {
         width: 100%;
-        justify-content: flex-start;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 0.4rem;
+    }
+    .nav-actions .btn {
+        padding: 0.45rem 0.6rem;
+        font-size: 0.8rem;
+        min-height: 40px;
+    }
+    .tabs-nav {
+        gap: 0.35rem;
+        padding: 0.25rem;
+        margin-bottom: 1rem;
+    }
+    .tab-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.825rem;
+        min-height: 44px;
     }
     .stats-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .stat-card {
+        padding: 0.75rem 0.85rem;
+        border-radius: var(--radius-sm);
+    }
+    .stat-label {
+        font-size: 0.7rem;
+        margin-bottom: 0.2rem;
+    }
+    .stat-value {
+        font-size: 1.35rem;
+        line-height: 1.2;
+    }
+    .stat-desc {
+        font-size: 0.7rem;
+        margin-top: 0.2rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .panel {
+        padding: 0.85rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+    }
+    .panel-header {
+        margin-bottom: 0.85rem;
+        padding-bottom: 0.5rem;
+    }
+    .panel-title {
+        font-size: 1rem;
+    }
+    .subtabs-nav {
+        width: 100%;
+        display: flex;
+        overflow-x: auto;
+    }
+    .subtab-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 0.4rem 0.5rem;
+        font-size: 0.775rem;
+        min-height: 40px;
     }
     .modal-dialog {
         max-height: 95vh;
+        width: 95%;
+        margin: 0.5rem;
+        padding: 1.15rem 1rem;
     }
     .bulk-action-bar {
-        bottom: 1rem;
-        width: calc(100% - 2rem);
+        bottom: 0.75rem;
+        width: calc(100% - 1rem);
         justify-content: center;
-        padding: 0.65rem 0.75rem;
+        padding: 0.5rem 0.65rem;
+        gap: 0.5rem;
     }
     .bulk-btn-group {
         justify-content: center;
         width: 100%;
+        gap: 0.35rem;
+    }
+    .bulk-btn-group .btn {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.775rem;
+        min-height: 38px;
     }
 }
 

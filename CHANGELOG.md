@@ -4,8 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-09-19]
+### Added
+- **"Remember Me" Persistent Authentication**:
+  - Secure persistent session authentication on trusted browsers via HTTP-only, `SameSite=Lax` `cm_remember` cookie token.
+  - Automatic session re-authentication upon session expiration using SHA-256 token verification stored in `data/auth.json`.
+  - Automatic token rotation upon each auto-login to prevent replay attacks and token revocation upon explicit logout.
+  - Added **"Keep me logged in on this browser"** checkbox to the login form.
+- **Mobile UI & App-View Grid Density Optimization**:
+  - Responsive 2x2 grid layout for stat cards on mobile screens (`<768px`) allowing twice as much dashboard context to be visible above the fold.
+  - Compact padding, font sizes, and layout heights across app container, panels, and modal views.
+  - Mobile touch target compliance (>= 44px) for all buttons, tab items, and login controls without horizontal overflow.
+
 ## [2026-09-18]
 ### Added
+- **Automatic Version Selection in Raw Content on Diff Line Clicks**:
+  - Clicking a 🔴 (removed / previous) diff row in the History & Diffs modal automatically switches to the **📄 Raw Content** tab and selects the previous version snapshot in the dropdown, loading its numbered content and highlighting the corresponding line.
+  - Clicking a 🟢 (added / new) or unchanged diff row automatically selects the new / comparison version snapshot, loads its content, and highlights the corresponding line.
 - **Dynamic Changes Detected & Errors Count Reset on Deletion**:
   - Automatically decrements and resets global and daily metrics in `stats.json` (`total_changes`, `total_errors`, and `checks_by_date[date]['changes']` / `checks_by_date[date]['errors']`) whenever change records or error logs are deleted individually, in bulk, or fully cleared.
   - Live client-side stat card updates (`#statValChanges`, `#statValErrors`) via `api.php?action=get_stats` upon record deletion without requiring page reload.
@@ -17,6 +32,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Added 7 customizable color themes: **Dark Night (Default)**, **☀️ Clean Light**, **🔴 Crimson Red**, **🔵 Cobalt Blue**, **🟢 Emerald Forest**, **🟣 Sunset Purple**, and **🌈 Cyberpunk Neon**.
   - Header theme switcher dropdown with automatic `localStorage` persistence and instant client-side switching.
   - Full variable-driven color system for backgrounds, cards, text contrast, borders, and ambient glow.
+- **Interactive Diff-to-Raw Navigation & Numbered Raw Snapshot Viewer**:
+  - Clicking any 🔴/🟢 Red & Green diff row or line number automatically switches to the **📄 Raw Content** tab, scrolls smoothly to that specific line, and highlights it with an animated pulse glow.
+  - Numbered raw snapshot code table with gutter line numbers, high-contrast typography, and version selection sync.
 - **Interactive Red/Green Diff View in Monitor History**:
   - Modal toggle between **🔴/🟢 Red & Green Diff**, **📄 Raw Content**, and **📋 Change Log**.
   - Dynamic snapshot version comparison selector with instant on-demand diff computation.

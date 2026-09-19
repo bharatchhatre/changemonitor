@@ -20,7 +20,8 @@ $route = $_GET['route'] ?? 'dashboard';
 $loginError = '';
 if (($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) || ($route === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST')) {
     $password = $_POST['password'] ?? '';
-    if (Auth::login($password)) {
+    $remember = !empty($_POST['remember']);
+    if (Auth::login($password, $remember)) {
         header('Location: ./');
         exit;
     } else {
@@ -84,7 +85,11 @@ if (!Auth::check()) {
                         <label class="form-label" for="password">Admin Password</label>
                         <input type="password" id="password" name="password" class="form-control" placeholder="Enter password..." required autofocus>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Unlock Dashboard</button>
+                    <div class="form-group" style="margin-top: 1rem; display: flex; align-items: center; gap: 0.5rem; user-select: none;">
+                        <input type="checkbox" id="remember" name="remember" class="custom-checkbox" value="1" checked>
+                        <label for="remember" style="font-size: 0.875rem; color: var(--text-secondary); cursor: pointer;">Keep me logged in on this browser</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1.25rem; min-height: 44px;">Unlock Dashboard</button>
                 </form>
             </div>
         </div>
@@ -1366,7 +1371,7 @@ $trashCount = count($trash);
                 </div>
 
                 <!-- Container 2: Raw Text Snapshot -->
-                <div class="diff-container" id="historySnapshot" style="max-height: 460px; display: none;"></div>
+                <div class="diff-container" id="historySnapshot" style="max-height: 460px; display: none; overflow-y: auto; padding: 0;"></div>
 
                 <!-- Container 3: Monitor Change Events List -->
                 <div id="historyChangesContainer" style="max-height: 460px; overflow-y: auto; display: none;">

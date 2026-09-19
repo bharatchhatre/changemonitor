@@ -678,8 +678,100 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentHistorySnapshots = [];
     let currentHistoryChanges = [];
 
+    function renderRawContentWithLineNumbers(container, rawText) {
+        if (!container) return;
+        if (!rawText || rawText.trim() === '') {
+            container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">No snapshot content captured yet.</div>';
+            return;
+        }
+
+        const lines = rawText.split('\n');
+        let html = '<table class="raw-code-table"><tbody>';
+        for (let i = 0; i < lines.length; i++) {
+            const lineNum = i + 1;
+            const lineText = lines[i];
+            html += `<tr id="raw-line-${lineNum}" class="raw-code-row" data-line="${lineNum}">` +
+                `<td class="raw-line-number" data-line="${lineNum}">${lineNum}</td>` +
+                `<td class="raw-line-content">${escapeHtml(lineText) || '&nbsp;'}</td>` +
+                `</tr>`;
+        }
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+
+    let currentRawLoadedFile = null;
+
+    async function loadRawSnapshotFile(file) {
+        if (!currentHistoryMonitorId) return;
+        const historySnapshot = document.getElementById('historySnapshot');
+        const snapshotSelect = document.getElementById('snapshotSelect');
+
+        const fetchFile = file || '';
+
+        // Match and sync dropdown option
+        if (snapshotSelect) {
+            let matched = false;
+            for (let i = 0; i < snapshotSelect.options.length; i++) {
+                if (snapshotSelect.options[i].value === fetchFile) {
+                    snapshotSelect.selectedIndex = i;
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                if (!fetchFile || (currentHistorySnapshots[0] && fetchFile === currentHistorySnapshots[0].file)) {
+                    snapshotSelect.selectedIndex = 0;
+                }
+            }
+        }
+
+        // Avoid re-fetching if already loaded in container
+        if (currentRawLoadedFile === fetchFile && historySnapshot && historySnapshot.querySelector('.raw-code-table')) {
+            return;
+        }
+
+        if (historySnapshot) {
+            historySnapshot.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading snapshot version...</div>';
+        }
+
+        try {
+            const res = await fetch(`api.php?action=get_history&id=${encodeURIComponent(currentHistoryMonitorId)}&snapshot_file=${encodeURIComponent(fetchFile)}`);
+            const data = await res.json();
+            if (data.success && historySnapshot) {
+                renderRawContentWithLineNumbers(historySnapshot, data.current_snapshot || data.latest_snapshot || '');
+                currentRawLoadedFile = fetchFile;
+            } else if (historySnapshot) {
+                historySnapshot.innerHTML = `<div style="color: var(--danger); padding: 1.5rem;">Failed to load snapshot version: ${escapeHtml(data.error || 'Unknown error')}</div>`;
+            }
+        } catch (err) {
+            if (historySnapshot) {
+                historySnapshot.innerHTML = `<div style="color: var(--danger); padding: 1.5rem;">Network error loading snapshot version: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+    }
+
+    function jumpAndHighlightRawLine(lineNo) {
+        if (!lineNo || isNaN(lineNo)) return;
+        requestAnimationFrame(() => {
+            const targetRow = document.getElementById(`raw-line-${lineNo}`);
+            const rawContainer = document.getElementById('historySnapshot');
+            if (!targetRow || !rawContainer) return;
+
+            // Scroll target line into view centered inside container
+            targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Trigger flash highlight animation
+            targetRow.classList.remove('raw-line-flash');
+            void targetRow.offsetWidth; // Force DOM reflow
+            targetRow.classList.add('raw-line-flash');
+
+            showToast(`Navigated to Line ${lineNo} in Raw Content`, 'info');
+        });
+    }
+
     window.viewHistory = async function(id) {
         currentHistoryMonitorId = id;
+        currentRawLoadedFile = '';
         openModal('historyModal');
         const historySnapshot = document.getElementById('historySnapshot');
         const historyDiffTable = document.getElementById('historyDiffTable');
@@ -694,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (downloadHistoryBtn) {
             downloadHistoryBtn.href = `api.php?action=download_history_log&id=${encodeURIComponent(id)}`;
         }
-        if (historySnapshot) historySnapshot.textContent = 'Loading snapshot...';
+        if (historySnapshot) historySnapshot.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading snapshot...</div>';
         if (historyDiffTable) historyDiffTable.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading diff comparison...</div>';
         if (snapshotSelect) snapshotSelect.innerHTML = '<option value="">Latest Captured Snapshot</option>';
         if (diffVersionOld) diffVersionOld.innerHTML = '<option value="">Previous Snapshot</option>';
@@ -709,7 +801,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 historyTitle.textContent = `History & Diffs: ${data.monitor?.name || id}`;
                 if (historySnapshot) {
-                    historySnapshot.textContent = data.current_snapshot || data.latest_snapshot || 'No snapshot captured yet.';
+                    renderRawContentWithLineNumbers(historySnapshot, data.current_snapshot || data.latest_snapshot || '');
+                    currentRawLoadedFile = '';
                 }
                 
                 if (historyLogMeta) {
@@ -817,6 +910,38 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('diffVersionOld')?.addEventListener('change', loadHistoryDiff);
     document.getElementById('diffVersionNew')?.addEventListener('change', loadHistoryDiff);
 
+    // Global event listener for clicking a diff row to navigate to that line in raw content
+    document.addEventListener('click', async (e) => {
+        const diffRow = e.target.closest('.diff-table-row');
+        if (!diffRow) return;
+        const lineNo = parseInt(diffRow.getAttribute('data-line'), 10);
+        const lineType = diffRow.getAttribute('data-type') || 'added';
+        if (!lineNo || isNaN(lineNo)) return;
+
+        const historyModal = document.getElementById('historyModal');
+        if (historyModal && historyModal.classList.contains('open')) {
+            const diffOld = document.getElementById('diffVersionOld')?.value;
+            const diffNew = document.getElementById('diffVersionNew')?.value;
+
+            // Resolve actual snapshot files for old (previous) vs new (latest) versions
+            const selectedOld = diffOld || (currentHistorySnapshots[1]?.file || '');
+            const selectedNew = diffNew || (currentHistorySnapshots[0]?.file || '');
+
+            // Previous / removed line -> previous version snapshot
+            // Added / new / unchanged line -> vs new version snapshot
+            const targetFile = (lineType === 'removed') ? selectedOld : selectedNew;
+
+            // Switch to raw content mode
+            setHistoryViewMode('raw');
+
+            // Load and select the target snapshot version
+            await loadRawSnapshotFile(targetFile);
+
+            // Navigate and highlight the target line
+            jumpAndHighlightRawLine(lineNo);
+        }
+    });
+
     function renderHistoryChangesTable(changes) {
         const tbody = document.getElementById('historyChangesTableBody');
         if (!tbody) return;
@@ -851,22 +976,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const snapshotSelect = document.getElementById('snapshotSelect');
     if (snapshotSelect) {
         snapshotSelect.addEventListener('change', async (e) => {
-            if (!currentHistoryMonitorId) return;
-            const historySnapshot = document.getElementById('historySnapshot');
-            const selectedFile = e.target.value;
-            historySnapshot.textContent = 'Loading selected snapshot version...';
-
-            try {
-                const res = await fetch(`api.php?action=get_history&id=${encodeURIComponent(currentHistoryMonitorId)}&snapshot_file=${encodeURIComponent(selectedFile)}`);
-                const data = await res.json();
-                if (data.success) {
-                    historySnapshot.textContent = data.current_snapshot || data.latest_snapshot || '(Empty content)';
-                } else {
-                    historySnapshot.textContent = 'Failed to load snapshot version: ' + data.error;
-                }
-            } catch (err) {
-                historySnapshot.textContent = 'Network error loading snapshot version: ' + err.message;
-            }
+            await loadRawSnapshotFile(e.target.value);
         });
     }
 

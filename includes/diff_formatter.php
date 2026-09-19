@@ -297,18 +297,21 @@ class DiffFormatter {
                 $bg = '#dcfce7'; // green
                 $textColor = '#14532d';
                 $sign = '<strong style="color: #16a34a; font-size: 14px;">+ </strong>';
+                $titleText = "Click to view Line {$lineNo} in New Version (Raw Content)";
             } elseif ($type === 'removed') {
                 $bg = '#fee2e2'; // red
                 $textColor = '#7f1d1d';
                 $sign = '<strong style="color: #dc2626; font-size: 14px;">- </strong>';
+                $titleText = "Click to view Line {$lineNo} in Previous Version (Raw Content)";
             } else {
                 $bg = '#ffffff';
                 $textColor = '#475569';
                 $sign = '&nbsp;&nbsp;';
+                $titleText = "Click to view Line {$lineNo} in Raw Content";
             }
 
-            $html .= "<tr style='background: {$bg}; border-bottom: 1px solid #f1f5f9;'>";
-            $html .= "<td style='padding: 4px 8px; text-align: right; color: #94a3b8; font-size: 11px; border-right: 1px solid #e2e8f0; user-select: none;'>{$lineNo}</td>";
+            $html .= "<tr class='diff-table-row diff-row-{$type}' data-line='{$lineNo}' data-type='{$type}' style='background: {$bg}; border-bottom: 1px solid #f1f5f9; cursor: pointer;' title='{$titleText}'>";
+            $html .= "<td style='padding: 4px 8px; text-align: right; color: #94a3b8; font-size: 11px; border-right: 1px solid #e2e8f0; user-select: none; font-weight: 600;' class='diff-line-no'>{$lineNo}</td>";
             $html .= "<td style='padding: 4px 8px; color: #64748b; font-size: 11px; border-right: 1px solid #e2e8f0; word-break: break-all;'>{$ctx}</td>";
             $html .= "<td style='padding: 4px 10px; color: {$textColor}; white-space: pre-wrap; word-break: break-word;'>{$sign}{$text}</td>";
             $html .= "</tr>";
