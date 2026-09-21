@@ -12,6 +12,44 @@ require_once __DIR__ . '/diff_formatter.php';
 
 class Notifier {
     /**
+     * Get base application URL for direct links
+     */
+    public static function getAppUrl(): string {
+        $envUrl = cm_env('APP_URL', '');
+        if (!empty($envUrl)) {
+            return rtrim($envUrl, '/');
+        }
+        $settings = Storage::getSettings();
+        if (!empty($settings['app_url'])) {
+            return rtrim($settings['app_url'], '/');
+        }
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $script = $_SERVER['SCRIPT_NAME'] ?? '';
+        $dir = rtrim(dirname($script), '/\\');
+        return $scheme . '://' . $host . ($dir ? $dir : '');
+    }
+
+    /**
+     * Build direct link URL to Detected Changes Explorer -> Change Comparison modal
+     */
+    public static function getChangeComparisonUrl(array $context): string {
+        $baseUrl = self::getAppUrl();
+        $changeId = $context['change_id'] ?? '';
+        $monitorId = $context['monitor_id'] ?? ($context['monitor']['id'] ?? '');
+
+        $query = ['route' => 'changes'];
+        if (!empty($changeId)) {
+            $query['change_id'] = $changeId;
+        }
+        if (!empty($monitorId)) {
+            $query['monitor_id'] = $monitorId;
+        }
+
+        return $baseUrl . '/index.php?' . http_build_query($query);
+    }
+
+    /**
      * Dispatch notification across all configured channels
      *
      * @param string $subject Notification title/subject
@@ -44,9 +82,9 @@ class Notifier {
         $isBigChange = !empty($diffData['is_big_change']);
         $url = $context['url'] ?? '';
 
-        // Generate attachments for big changes
+        // Generate snapshot HTML attachments whenever diffData exists
         $attachments = [];
-        if ($isBigChange && !empty($diffData)) {
+        if (!empty($diffData)) {
             $monitorName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $context['monitor']['name'] ?? 'target');
             $ts = date('Ymd_His');
             $meta = [
@@ -134,20 +172,26 @@ class Notifier {
         $diffData = $context['diff_data'] ?? null;
         $isBigChange = !empty($diffData['is_big_change']);
         $targetUrl = $context['url'] ?? '';
+        $comparisonUrl = self::getChangeComparisonUrl($context);
 
-        if (!empty($diffData) && !$isBigChange) {
-            // Small change: Inline contextual diff with red/green emoji highlights
+        if (!empty($diffData)) {
+            // Inline contextual diff with red/green emoji highlights
             $text = DiffFormatter::formatTelegramText($subject, $message, $diffData, $targetUrl);
+            if ($isBigChange) {
+                $text .= "\n\n📦 *Large Change Volume:* Complete previous (red) and new (green) snapshot files are attached below.";
+            }
         } else {
             $text = "🔔 *{$subject}*\n\n" . $message;
-            if ($isBigChange) {
-                $text .= "\n\n📦 *Large Change Detected:* Complete previous (red) and new (green) snapshot files are attached below.";
-            } elseif (!empty($context['diff'])) {
+            if (!empty($context['diff'])) {
                 $text .= "\n\n```diff\n" . substr($context['diff'], 0, 1000) . "\n```";
             }
             if (!empty($targetUrl)) {
                 $text .= "\n🔗 Target: " . $targetUrl;
             }
+        }
+
+        if (!empty($comparisonUrl)) {
+            $text .= "\n\n🔍 *View Comparison:* " . $comparisonUrl;
         }
 
         $payload = [
@@ -176,6 +220,7 @@ class Notifier {
             $plainText = "🔔 [{$subject}]\n\n" . strip_tags($message);
             if (!empty($targetUrl)) $plainText .= "\nTarget: " . $targetUrl;
             if (!empty($context['diff'])) $plainText .= "\n\nDiff:\n" . substr($context['diff'], 0, 800);
+            if (!empty($comparisonUrl)) $plainText .= "\n\nView Comparison: " . $comparisonUrl;
 
             $ch2 = curl_init($url);
             curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
@@ -197,8 +242,8 @@ class Notifier {
             }
         }
 
-        // If Big Change and message succeeded, send document attachments
-        if ($success && $isBigChange && !empty($context['attachments'])) {
+        // Send document attachments if available
+        if ($success && !empty($context['attachments'])) {
             foreach ($context['attachments'] as $att) {
                 self::sendTelegramDocument($botToken, $chatId, $att['filename'], $att['content'], $att['caption'] ?? '');
             }
@@ -260,19 +305,25 @@ class Notifier {
         $diffData = $context['diff_data'] ?? null;
         $isBigChange = !empty($diffData['is_big_change']);
         $targetUrl = $context['url'] ?? '';
+        $comparisonUrl = self::getChangeComparisonUrl($context);
 
-        if (!empty($diffData) && !$isBigChange) {
+        if (!empty($diffData)) {
             $fullMsg = DiffFormatter::formatWhatsAppText($subject, $message, $diffData, $targetUrl);
+            if ($isBigChange) {
+                $fullMsg .= "\n\n📦 *Large Change Volume:* Separate old & new snapshot files sent below.";
+            }
         } else {
             $fullMsg = "*[{$subject}]*\n\n" . $message;
-            if ($isBigChange) {
-                $fullMsg .= "\n\n📦 *Large Change Detected:* Separate old & new snapshot files sent below.";
-            } elseif (!empty($context['diff'])) {
+            if (!empty($context['diff'])) {
                 $fullMsg .= "\n\n*Diff Snippet:*\n" . substr($context['diff'], 0, 800);
             }
             if (!empty($targetUrl)) {
                 $fullMsg .= "\n\nURL: " . $targetUrl;
             }
+        }
+
+        if (!empty($comparisonUrl)) {
+            $fullMsg .= "\n\n🔍 *View Comparison:* " . $comparisonUrl;
         }
 
         $payload = [
@@ -301,8 +352,8 @@ class Notifier {
 
         $success = ($code >= 200 && $code < 300);
 
-        // If Big Change, dispatch files
-        if ($success && $isBigChange && !empty($context['attachments'])) {
+        // Dispatch files if available
+        if ($success && !empty($context['attachments'])) {
             foreach ($context['attachments'] as $att) {
                 self::sendOpenWAFile($apiUrl, $apiKey, $chatId, $att['filename'], $att['content'], $att['caption'] ?? '');
             }
@@ -374,6 +425,7 @@ class Notifier {
             return ['success' => false, 'error' => 'Missing SMTP configuration or destination email.'];
         }
 
+        $comparisonUrl = self::getChangeComparisonUrl($context);
         $diffData = $context['diff_data'] ?? null;
         $isBigChange = !empty($diffData['is_big_change']);
         $attachments = $context['attachments'] ?? [];
@@ -386,17 +438,17 @@ class Notifier {
             $htmlBody .= "<p style='font-size:13px;'><strong>Target URL:</strong> <a href='" . htmlspecialchars($context['url']) . "' style='color:#0284c7;'>" . htmlspecialchars($context['url']) . "</a></p>";
         }
 
+        if (!empty($comparisonUrl)) {
+            $htmlBody .= "<div style='margin:16px 0;'>";
+            $htmlBody .= "<a href='" . htmlspecialchars($comparisonUrl) . "' target='_blank' style='display:inline-block; background:#0284c7; color:#ffffff; padding:10px 18px; border-radius:6px; text-decoration:none; font-weight:600; font-size:13px;'>🔍 Open Change Comparison in Website Explorer &rarr;</a>";
+            $htmlBody .= "</div>";
+        }
+
         if (!empty($diffData)) {
-            if (!$isBigChange) {
-                // Small Change: Inline contextual HTML table with red/green highlights & line numbers
-                $htmlBody .= "<h3>Detected Changes (Inline Diff)</h3>";
-                $htmlBody .= DiffFormatter::formatHtmlInline($diffData);
-            } else {
-                // Big Change: Summary notice + attached HTML files
-                $htmlBody .= "<div style='background:#fef2f2; border:1px solid #fecaca; border-radius:6px; padding:12px 16px; margin:16px 0;'>";
-                $htmlBody .= "<strong style='color:#991b1b;'>📦 Large Change Detected (" . ($diffData['total_changed'] ?? 0) . " lines changed)</strong>";
-                $htmlBody .= "<p style='font-size:13px; color:#7f1d1d; margin:6px 0 0 0;'>Due to the large volume of changes, the previous snapshot (with removals highlighted in red) and new snapshot (with additions highlighted in green) have been attached as standalone HTML files for your review.</p>";
-                $htmlBody .= "</div>";
+            $htmlBody .= "<h3>Detected Changes (Inline Diff)</h3>";
+            $htmlBody .= DiffFormatter::formatHtmlInline($diffData);
+            if ($isBigChange) {
+                $htmlBody .= "<p style='font-size:12px; color:#64748b; font-style:italic;'>Note: Large volume of changes detected. Standalone HTML snapshots with complete additions/removals are attached.</p>";
             }
         } elseif (!empty($context['diff'])) {
             $htmlBody .= "<h3>Detected Change Diff</h3>";
@@ -404,7 +456,7 @@ class Notifier {
         }
 
         $htmlBody .= "<hr style='border:none; border-top:1px solid #e2e8f0; margin-top:24px;'>";
-        $htmlBody .= "<p style='font-size:11px; color:#94a3b8;'>Sent by Website Change Monitor - Bluehost</p>";
+        $htmlBody .= "<p style='font-size:11px; color:#94a3b8;'>Sent by Website Change Monitor</p>";
         $htmlBody .= "</div>";
 
         try {

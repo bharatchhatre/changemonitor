@@ -100,8 +100,7 @@ class DiffFormatter {
         }
 
         $totalChangedLines = $addedCount + $removedCount;
-        $charDiffLen = abs(strlen($newText) - strlen($oldText)) + ($totalChangedLines * 30);
-        $isBig = ($totalChangedLines > $lineThreshold || $charDiffLen > $charThreshold || strlen($newText) > 20000);
+        $isBig = ($totalChangedLines > $lineThreshold);
 
         return [
             'is_json' => true,
@@ -167,8 +166,7 @@ class DiffFormatter {
         }
 
         $totalChangedLines = $addedCount + $removedCount;
-        $charDiffLen = abs(strlen($newText) - strlen($oldText)) + ($totalChangedLines * 30);
-        $isBig = ($totalChangedLines > $lineThreshold || $charDiffLen > $charThreshold || strlen($newText) > 20000);
+        $isBig = ($totalChangedLines > $lineThreshold);
 
         return [
             'is_json' => false,

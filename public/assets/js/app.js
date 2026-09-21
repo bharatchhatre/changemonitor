@@ -390,13 +390,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Restore active tab & subtab on initial load
+    // Restore active tab & subtab on initial load, with support for URL query params
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoute = urlParams.get('route');
+    const urlChangeId = urlParams.get('change_id') || urlParams.get('event_id');
+    const urlMonitorId = urlParams.get('monitor_id');
+
     const hash = window.location.hash.replace('#', '');
     let initialTab = null;
-    if (hash) {
+
+    if (urlChangeId || urlRoute === 'changes') {
+        initialTab = 'tab-changes';
+    } else if (hash) {
         if (document.getElementById(`tab-${hash}`)) initialTab = `tab-${hash}`;
         else if (document.getElementById(hash)) initialTab = hash;
     }
+
     if (!initialTab) {
         try {
             initialTab = sessionStorage.getItem('active_tab');
@@ -404,6 +413,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (initialTab && document.getElementById(initialTab)) {
         activateTab(initialTab);
+    }
+
+    // Auto-open Change Comparison modal if change_id parameter is present in URL
+    if (urlChangeId) {
+        setTimeout(() => {
+            if (typeof window.openChangeDetail === 'function') {
+                window.openChangeDetail(urlChangeId, urlMonitorId || null);
+            }
+        }, 300);
     }
 
     let initialSubtab = null;

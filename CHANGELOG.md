@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-09-21]
+### Fixed
+- **Notification Inline Diff Formatting & Attachment Fix**:
+  - Corrected `is_big_change` threshold evaluation so line-based diff criteria dominates document character length, ensuring small line changes (1 or 2 lines) render full inline diffs with line numbers and red/green highlights across Email, Telegram, and WhatsApp alerts.
+  - Retained standalone HTML snapshot file attachments (`previous_snapshot_*.html` and `new_snapshot_*.html`) on change notifications.
+
+### Added
+- **Direct Website Link to Change Comparison Explorer**:
+  - Added direct deep-link (`index.php?route=changes&change_id=chg_xxx&monitor_id=mon_yyy`) to Email HTML, Telegram Markdown, and WhatsApp notification bodies.
+  - Automatic URL query parameter handling on initial page load in `app.js` to navigate directly to **Detected Changes Explorer** and automatically open the **Change Comparison** modal for the specific change event.
+
 ## [2026-09-19]
 ### Added
 - **Mobile Navigation Drawer & Relocated Primary Controls**:

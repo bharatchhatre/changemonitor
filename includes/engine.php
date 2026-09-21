@@ -200,7 +200,7 @@ class Engine {
             $diffData = DiffFormatter::computeContextualDiff($oldSnapshot, $newSnapshot, $type, $threshold);
 
             // Save structured change event
-            Storage::saveChangeEvent($monitorId, $oldSnapshot, $newSnapshot, $diffData, '', $newSnapFile);
+            $changeEvent = Storage::saveChangeEvent($monitorId, $oldSnapshot, $newSnapshot, $diffData, '', $newSnapFile);
 
             Storage::logHistory($monitorId, 'CHANGE_DETECTED', "Change detected. New hash: " . substr($newHash, 0, 10), $diff);
 
@@ -217,6 +217,8 @@ class Engine {
                         'diff_data' => $diffData,
                         'type' => $type,
                         'monitor' => $monitor,
+                        'change_id' => $changeEvent['id'] ?? '',
+                        'monitor_id' => $monitorId,
                     ]
                 );
             }

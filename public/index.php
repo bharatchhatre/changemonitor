@@ -75,7 +75,8 @@ if (!Auth::check()) {
                     <div class="brand-icon" style="margin: 0 auto 1rem; width: 48px; height: 48px; font-size: 1.5rem;">⚡
                     </div>
                     <h1 style="font-size: 1.4rem; font-weight: 700;">
-                        <?= htmlspecialchars(cm_env('APP_NAME', 'Website Change Monitor')) ?></h1>
+                        <?= htmlspecialchars(cm_env('APP_NAME', 'Website Change Monitor')) ?>
+                    </h1>
                     <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">Admin Access Portal</p>
                 </div>
 
@@ -401,7 +402,8 @@ $trashCount = count($trash);
                                                 <?php if (!empty($m['selector'])): ?>
                                                     <div
                                                         style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                                        <?= htmlspecialchars(substr($m['selector'], 0, 30)) ?>            <?= strlen($m['selector']) > 30 ? '...' : '' ?>
+                                                        <?= htmlspecialchars(substr($m['selector'], 0, 30)) ?>
+                                                        <?= strlen($m['selector']) > 30 ? '...' : '' ?>
                                                     </div>
                                                 <?php endif; ?>
                                             </td>
@@ -413,7 +415,8 @@ $trashCount = count($trash);
                                             <td>
                                                 <?php if (!empty($m['last_check_at'])): ?>
                                                     <div style="font-size: 0.85rem;">
-                                                        <?= date('M d, H:i', strtotime($m['last_check_at'])) ?></div>
+                                                        <?= date('M d, H:i', strtotime($m['last_check_at'])) ?>
+                                                    </div>
                                                     <div style="font-size: 0.75rem; color: var(--text-muted);">
                                                         HTTP <?= $m['last_status_code'] ?? '-' ?>
                                                     </div>
@@ -529,7 +532,8 @@ $trashCount = count($trash);
                                                 <?php if (!empty($m['selector'])): ?>
                                                     <div
                                                         style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                                        <?= htmlspecialchars(substr($m['selector'], 0, 30)) ?>            <?= strlen($m['selector']) > 30 ? '...' : '' ?>
+                                                        <?= htmlspecialchars(substr($m['selector'], 0, 30)) ?>
+                                                        <?= strlen($m['selector']) > 30 ? '...' : '' ?>
                                                     </div>
                                                 <?php endif; ?>
                                             </td>
@@ -541,7 +545,8 @@ $trashCount = count($trash);
                                             <td>
                                                 <?php if (!empty($m['last_check_at'])): ?>
                                                     <div style="font-size: 0.85rem;">
-                                                        <?= date('M d, H:i', strtotime($m['last_check_at'])) ?></div>
+                                                        <?= date('M d, H:i', strtotime($m['last_check_at'])) ?>
+                                                    </div>
                                                     <div style="font-size: 0.75rem; color: var(--text-muted);">
                                                         HTTP <?= $m['last_status_code'] ?? '-' ?>
                                                     </div>
@@ -1163,7 +1168,8 @@ $trashCount = count($trash);
                                     <select id="monitorPeakStart" class="form-control">
                                         <?php for ($h = 0; $h < 24; $h++): ?>
                                             <option value="<?= $h ?>" <?= $h === 9 ? 'selected' : '' ?>>
-                                                <?= sprintf('%02d:00', $h) ?></option>
+                                                <?= sprintf('%02d:00', $h) ?>
+                                            </option>
                                         <?php endfor; ?>
                                     </select>
                                 </div>
@@ -1172,7 +1178,8 @@ $trashCount = count($trash);
                                     <select id="monitorPeakEnd" class="form-control">
                                         <?php for ($h = 0; $h < 24; $h++): ?>
                                             <option value="<?= $h ?>" <?= $h === 18 ? 'selected' : '' ?>>
-                                                <?= sprintf('%02d:00', $h) ?></option>
+                                                <?= sprintf('%02d:00', $h) ?>
+                                            </option>
                                         <?php endfor; ?>
                                     </select>
                                 </div>
@@ -1667,7 +1674,7 @@ $trashCount = count($trash);
         style="margin-top: 3rem; padding: 1.5rem 0; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <div style="font-size: 0.825rem; color: var(--text-muted);">
             ⚡ <strong><?= htmlspecialchars(cm_env('APP_NAME', 'Website Change Monitor')) ?></strong> &bull;
-            v<?= CM_VERSION ?> &bull; Shared Hosting Engine
+            v<?= CM_VERSION ?> &bull; ©bharatchhatre
         </div>
         <div
             style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-subtle); padding: 0.3rem 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
