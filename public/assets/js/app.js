@@ -550,6 +550,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
 
+            if (char === "$" && i + 1 < str.length && (str[i + 1] === "'" || str[i + 1] === '"') && !inSingle && !inDouble) {
+                continue; // Skip the bash ANSI-C dollar prefix
+            }
+
             if (char === "'" && !inDouble) {
                 inSingle = !inSingle;
                 continue;
@@ -588,6 +592,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (token === "curl") {
                 continue;
+            } else if (token === "--url") {
+                if (next) url = next;
+                k++;
             } else if (token === "-X" || token === "--request") {
                 method = next.toUpperCase();
                 k++;
