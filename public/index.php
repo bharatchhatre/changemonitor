@@ -1089,6 +1089,21 @@ $trashCount = count($trash);
             <form id="monitorForm">
                 <input type="hidden" id="monitorId" value="">
                 <div class="modal-body">
+                    <!-- Quick Paste cURL Importer -->
+                    <div class="curl-paste-wrapper" id="curlPasteWrapper" style="margin-bottom: 1.25rem; background: var(--bg-subtle); border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 0.85rem 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <label for="monitorCurlPaste" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem; margin: 0; cursor: pointer;">
+                                <span>📋</span> Paste cURL Command
+                            </label>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Auto-fills Target Name, URL, Headers & Cookies</span>
+                        </div>
+                        <textarea id="monitorCurlPaste" class="form-control" style="font-family: var(--font-mono); font-size: 0.8rem; min-height: 64px; max-height: 120px; resize: vertical;" placeholder="curl 'https://api.example.com/data' -H 'Authorization: Bearer xyz' -H 'Cookie: session=123'"></textarea>
+                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.6rem;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="clearCurlBtn" style="padding: 0.35rem 0.75rem; min-height: 34px; font-size: 0.8rem;">Clear</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="applyCurlBtn" style="padding: 0.35rem 0.85rem; min-height: 34px; font-size: 0.8rem;">⚡ Parse & Autofill</button>
+                        </div>
+                    </div>
+
                     <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="monitorName">Target Name *</label>

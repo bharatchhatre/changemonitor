@@ -520,6 +520,257 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Helper: Parse cURL Command ---
+    function parseCurlCommand(rawCurl) {
+        if (!rawCurl || typeof rawCurl !== "string") return null;
+        let str = rawCurl.trim();
+        if (!str) return null;
+
+        // Clean up multi-line backslash escapes
+        str = str.replace(/\\\r?\n/g, " ");
+
+        // Tokenize command line arguments respecting quotes
+        const tokens = [];
+        let curr = "";
+        let inSingle = false;
+        let inDouble = false;
+        let isEscaped = false;
+
+        for (let i = 0; i < str.length; i++) {
+            const char = str[i];
+
+            if (isEscaped) {
+                curr += char;
+                isEscaped = false;
+                continue;
+            }
+
+            if (char === "\\" && !inSingle) {
+                isEscaped = true;
+                continue;
+            }
+
+            if (char === "'" && !inDouble) {
+                inSingle = !inSingle;
+                continue;
+            }
+
+            if (char === '"' && !inSingle) {
+                inDouble = !inDouble;
+                continue;
+            }
+
+            if (/\s/.test(char) && !inSingle && !inDouble) {
+                if (curr.length > 0) {
+                    tokens.push(curr);
+                    curr = "";
+                }
+            } else {
+                curr += char;
+            }
+        }
+        if (curr.length > 0) {
+            tokens.push(curr);
+        }
+
+        if (tokens.length === 0) return null;
+
+        let url = "";
+        const headers = [];
+        let cookies = "";
+        let userAgent = "";
+        let method = "GET";
+        let data = "";
+
+        for (let k = 0; k < tokens.length; k++) {
+            const token = tokens[k];
+            const next = tokens[k + 1] || "";
+
+            if (token === "curl") {
+                continue;
+            } else if (token === "-X" || token === "--request") {
+                method = next.toUpperCase();
+                k++;
+            } else if (token === "-H" || token === "--header") {
+                if (next) {
+                    const colonIdx = next.indexOf(":");
+                    if (colonIdx > 0) {
+                        const hKey = next.substring(0, colonIdx).trim();
+                        const hVal = next.substring(colonIdx + 1).trim();
+                        const hKeyLower = hKey.toLowerCase();
+                        if (hKeyLower === "cookie") {
+                            cookies = cookies ? (cookies + "; " + hVal) : hVal;
+                        } else if (hKeyLower === "user-agent") {
+                            userAgent = hVal;
+                        } else {
+                            headers.push(hKey + ": " + hVal);
+                        }
+                    } else {
+                        headers.push(next.trim());
+                    }
+                }
+                k++;
+            } else if (token.startsWith("-H") && token.length > 2) {
+                const headerVal = token.substring(2);
+                const colonIdx2 = headerVal.indexOf(":");
+                if (colonIdx2 > 0) {
+                    const hk = headerVal.substring(0, colonIdx2).trim();
+                    const hv = headerVal.substring(colonIdx2 + 1).trim();
+                    if (hk.toLowerCase() === "cookie") {
+                        cookies = cookies ? (cookies + "; " + hv) : hv;
+                    } else if (hk.toLowerCase() === "user-agent") {
+                        userAgent = hv;
+                    } else {
+                        headers.push(hk + ": " + hv);
+                    }
+                } else {
+                    headers.push(headerVal.trim());
+                }
+            } else if (token === "-b" || token === "--cookie") {
+                if (next) {
+                    cookies = cookies ? (cookies + "; " + next) : next;
+                }
+                k++;
+            } else if (token === "-A" || token === "--user-agent") {
+                if (next) userAgent = next;
+                k++;
+            } else if (token === "-d" || token === "--data" || token === "--data-raw" || token === "--data-binary") {
+                if (next) data = next;
+                k++;
+            } else if (token.startsWith("http://") || token.startsWith("https://")) {
+                if (!url) url = token;
+            } else if (!token.startsWith("-") && !url && k > 0) {
+                const prev = tokens[k - 1];
+                if (prev !== "-X" && prev !== "--request" && prev !== "-H" && prev !== "--header" && prev !== "-b" && prev !== "--cookie" && prev !== "-A" && prev !== "--user-agent" && prev !== "-d" && prev !== "--data" && prev !== "--data-raw" && prev !== "--data-binary") {
+                    if (token.includes(".") && !token.includes(" ") && (token.startsWith("http") || token.includes("/"))) {
+                        url = token.startsWith("http") ? token : ("https://" + token);
+                    }
+                }
+            }
+        }
+
+        // Clean up stray quotes around URL
+        if (url) {
+            url = url.replace(/^['"]|['"]$/g, "");
+        }
+
+        // Determine suggested browser profile
+        let suggestedTemplate = "";
+        if (userAgent) {
+            const ua = userAgent.toLowerCase();
+            if (ua.includes("iphone") || ua.includes("mobile") || ua.includes("android")) {
+                suggestedTemplate = "mobile_safari";
+            } else if (ua.includes("firefox")) {
+                suggestedTemplate = "firefox_win";
+            } else if (ua.includes("macintosh") || ua.includes("mac os")) {
+                suggestedTemplate = "chrome_mac";
+            } else if (ua.includes("windows")) {
+                suggestedTemplate = "chrome_win";
+            }
+        }
+
+        // Generate friendly suggested name from domain/path
+        let suggestedName = "";
+        if (url) {
+            try {
+                const parsedUrl = new URL(url);
+                const hostParts = parsedUrl.hostname.replace(/^www\./, "").split(".");
+                const baseHost = hostParts.length >= 2 ? hostParts[hostParts.length - 2] : (hostParts[0] || parsedUrl.hostname);
+                const domainName = baseHost ? (baseHost.charAt(0).toUpperCase() + baseHost.slice(1)) : parsedUrl.hostname;
+                const pathEnd = parsedUrl.pathname && parsedUrl.pathname !== "/" ? (" - " + parsedUrl.pathname.split("/").filter(Boolean).pop()) : "";
+                suggestedName = domainName + pathEnd;
+            } catch (e) {
+                suggestedName = url;
+            }
+        }
+
+        return {
+            url: url,
+            name: suggestedName,
+            headers: headers.join("\n"),
+            cookies: cookies,
+            userAgent: userAgent,
+            template: suggestedTemplate,
+            method: method
+        };
+    }
+
+    // --- cURL Paste Autofill Handlers ---
+    const curlPasteInput = document.getElementById("monitorCurlPaste");
+    const applyCurlBtn = document.getElementById("applyCurlBtn");
+    const clearCurlBtn = document.getElementById("clearCurlBtn");
+
+    function applyParsedCurl(parsed) {
+        if (!parsed) return;
+        if (parsed.url) {
+            const urlEl = document.getElementById("monitorUrl");
+            if (urlEl) urlEl.value = parsed.url;
+        }
+        if (parsed.name) {
+            const nameEl = document.getElementById("monitorName");
+            if (nameEl && (!nameEl.value || nameEl.value.trim() === "")) {
+                nameEl.value = parsed.name;
+            }
+        }
+        if (parsed.headers) {
+            const headersEl = document.getElementById("monitorHeaders");
+            if (headersEl) {
+                headersEl.value = parsed.headers;
+            }
+        }
+        if (parsed.cookies) {
+            const cookiesEl = document.getElementById("monitorCookies");
+            if (cookiesEl) {
+                cookiesEl.value = parsed.cookies;
+            }
+        }
+        if (parsed.template) {
+            const templateEl = document.getElementById("monitorTemplate");
+            if (templateEl) {
+                const optionExists = Array.from(templateEl.options).some(opt => opt.value === parsed.template);
+                if (optionExists) templateEl.value = parsed.template;
+            }
+        }
+    }
+
+    if (applyCurlBtn) {
+        applyCurlBtn.addEventListener("click", () => {
+            const raw = curlPasteInput ? curlPasteInput.value.trim() : "";
+            if (!raw) {
+                showToast("Please paste a cURL command first", "error");
+                return;
+            }
+            const parsed = parseCurlCommand(raw);
+            if (!parsed || !parsed.url) {
+                showToast("Could not extract a valid URL from the cURL command", "error");
+                return;
+            }
+            applyParsedCurl(parsed);
+            showToast("Form autofilled from cURL successfully!", "success");
+        });
+    }
+
+    if (clearCurlBtn) {
+        clearCurlBtn.addEventListener("click", () => {
+            if (curlPasteInput) curlPasteInput.value = "";
+        });
+    }
+
+    if (curlPasteInput) {
+        curlPasteInput.addEventListener("paste", () => {
+            setTimeout(() => {
+                const text = curlPasteInput.value.trim();
+                if (text && (text.startsWith("curl") || text.includes("http://") || text.includes("https://"))) {
+                    const parsed = parseCurlCommand(text);
+                    if (parsed && parsed.url) {
+                        applyParsedCurl(parsed);
+                        showToast("Detected cURL paste & autofilled form!", "success");
+                    }
+                }
+            }, 50);
+        });
+    }
+
     // --- Add/Edit Monitor Modal ---
     const monitorForm = document.getElementById('monitorForm');
     const addMonitorBtn = document.getElementById('addMonitorBtn');
@@ -527,6 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addMonitorBtn) {
         addMonitorBtn.addEventListener('click', () => {
             if (monitorForm) monitorForm.reset();
+            if (curlPasteInput) curlPasteInput.value = '';
             document.getElementById('monitorModalTitle').textContent = 'Add New Target Monitor';
             document.getElementById('monitorId').value = '';
             document.getElementById('previewOutput').style.display = 'none';
@@ -537,6 +789,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.editMonitor = function(data) {
         if (!data || !monitorForm) return;
         monitorForm.reset();
+        if (curlPasteInput) curlPasteInput.value = '';
         
         const setVal = (id, val) => {
             const el = document.getElementById(id);

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-09-22]
+### Added
+- **Paste cURL and Target Form Autofill**:
+  - Added an intuitive **📋 Paste cURL Command** importer box inside the Add/Edit Target Monitor modal.
+  - Automatically parses raw or multi-line cURL commands, browser "Copy as cURL" formats, URLs, headers (`-H`, `--header`), cookies (`-b`, `--cookie`), and user agents (`-A`, `--user-agent`).
+  - Autofills Target Name, Target URL, Custom Request Headers, Cookies, and matching Browser Request Profiles with instant feedback and live paste detection.
+
 ## [2026-09-21]
 ### Fixed
 - **Notification Inline Diff Formatting & Attachment Fix**:
