@@ -609,6 +609,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             cookies = cookies ? (cookies + "; " + hVal) : hVal;
                         } else if (hKeyLower === "user-agent") {
                             userAgent = hVal;
+                        } else if (hKeyLower === "if-none-match" || hKeyLower === "if-modified-since" || hKeyLower === "if-match" || hKeyLower === "if-range" || hKeyLower === "if-unmodified-since") {
+                            // Skip stale conditional caching headers from DevTools cURL so server returns full HTTP 200 body instead of empty HTTP 304 Not Modified
                         } else {
                             headers.push(hKey + ": " + hVal);
                         }
@@ -623,10 +625,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (colonIdx2 > 0) {
                     const hk = headerVal.substring(0, colonIdx2).trim();
                     const hv = headerVal.substring(colonIdx2 + 1).trim();
-                    if (hk.toLowerCase() === "cookie") {
+                    const hkLower = hk.toLowerCase();
+                    if (hkLower === "cookie") {
                         cookies = cookies ? (cookies + "; " + hv) : hv;
-                    } else if (hk.toLowerCase() === "user-agent") {
+                    } else if (hkLower === "user-agent") {
                         userAgent = hv;
+                    } else if (hkLower === "if-none-match" || hkLower === "if-modified-since" || hkLower === "if-match" || hkLower === "if-range" || hkLower === "if-unmodified-since") {
+                        // Skip stale caching header
                     } else {
                         headers.push(hk + ": " + hv);
                     }
