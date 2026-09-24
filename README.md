@@ -62,8 +62,14 @@ changemonitor/
    - `FTP_PASSWORD`: Your cPanel FTP password.
    - `FTP_REMOTE_DIR`: Target folder on server (e.g. `public_html/changemonitor/` or `public_html/`).
    - `FTP_PORT`: `21` (or `22` for SFTP).
-3. Push to `main` branch or trigger manually under GitHub **Actions > "Deploy to Bluehost Shared Hosting" > Run workflow**.
-4. Log into cPanel File Manager, create `.env` from `.env.example` in the app root directory, and set your `ADMIN_PASSWORD` and `CRON_TOKEN`.
+3. Stage, commit, and push your changes to `main`:
+   ```bash
+   git add .
+   git commit -m "feat: your update message"
+   git push origin main
+   ```
+4. Pushing automatically triggers the GitHub Action workflow (`.github/workflows/deploy.yml`) to validate PHP syntax and sync files to Bluehost via FTP/SFTP. You can also trigger it manually under GitHub **Actions > "Deploy to Bluehost Shared Hosting" > Run workflow**.
+5. On initial setup, open cPanel File Manager, create `.env` from `.env.example` in the app root directory, and configure your `ADMIN_PASSWORD` and `CRON_TOKEN`.
 
 ---
 
