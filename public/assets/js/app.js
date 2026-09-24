@@ -1118,6 +1118,85 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let currentRawLoadedFile = null;
+    let currentRawTextContent = '';
+    let isRawHtmlPreviewActive = false;
+    let isRawBeautified = false;
+
+    // Fast beautifier utilities for JSON, CSS, XML/HTML, JS/Text
+    function beautifyContent(text) {
+        if (!text || typeof text !== 'string') return text;
+        const trimmed = text.trim();
+
+        // 1. Try JSON beautification
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                return JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                // Not valid JSON, proceed to CSS / HTML detection
+            }
+        }
+
+        // 2. CSS Beautification
+        if (trimmed.includes('{') && trimmed.includes('}') && (trimmed.includes(':') || trimmed.includes(';')) && !trimmed.includes('<html') && !trimmed.includes('<!DOCTYPE')) {
+            try {
+                let formatted = '';
+                let indent = 0;
+                const tab = '  ';
+                // Normalize spacing
+                let clean = trimmed.replace(/\s+/g, ' ').replace(/\{\s*/g, '{\n').replace(/;\s*/g, ';\n').replace(/\}\s*/g, '\n}\n');
+                const lines = clean.split('\n');
+                lines.forEach(l => {
+                    let line = l.trim();
+                    if (!line) return;
+                    if (line.endsWith('}')) indent = Math.max(0, indent - 1);
+                    formatted += tab.repeat(indent) + line + '\n';
+                    if (line.endsWith('{')) indent++;
+                });
+                return formatted.trim();
+            } catch (e) {}
+        }
+
+        // 3. HTML / XML Beautification
+        if (trimmed.includes('<') && trimmed.includes('>')) {
+            try {
+                let formatted = '';
+                let indent = 0;
+                const tab = '  ';
+                // Split tags into individual lines
+                const reg = /(>)(<)(\/*)/g;
+                let cleanXml = trimmed.replace(reg, '$1\r\n$2$3');
+                const lines = cleanXml.split('\r\n');
+
+                const selfClosing = ['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr','!doctype'];
+
+                lines.forEach(l => {
+                    let line = l.trim();
+                    if (!line) return;
+
+                    const isClosing = /^<\//.test(line);
+                    const isOpening = /^<[^\/!][^>]*[^\/]?>$/.test(line);
+                    const tagNameMatch = line.match(/^<([a-zA-Z0-9\-]+)/);
+                    const tagName = tagNameMatch ? tagNameMatch[1].toLowerCase() : '';
+                    const isSelfClosing = selfClosing.includes(tagName) || /\/>$/.test(line) || /^<!--/.test(line) || /^<\?/.test(line) || /^<!/.test(line);
+
+                    if (isClosing) {
+                        indent = Math.max(0, indent - 1);
+                    }
+
+                    formatted += tab.repeat(indent) + line + '\n';
+
+                    if (isOpening && !isSelfClosing && !isClosing) {
+                        indent++;
+                    }
+                });
+
+                return formatted.trim();
+            } catch (e) {}
+        }
+
+        return text;
+    }
 
     async function loadRawSnapshotFile(file) {
         if (!currentHistoryMonitorId) return;
@@ -1156,8 +1235,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`api.php?action=get_history&id=${encodeURIComponent(currentHistoryMonitorId)}&snapshot_file=${encodeURIComponent(fetchFile)}`);
             const data = await res.json();
             if (data.success && historySnapshot) {
-                renderRawContentWithLineNumbers(historySnapshot, data.current_snapshot || data.latest_snapshot || '');
+                currentRawTextContent = data.current_snapshot || data.latest_snapshot || '';
                 currentRawLoadedFile = fetchFile;
+                isRawBeautified = false;
+                updateRawBeautifyBtnState();
+
+                if (isRawHtmlPreviewActive) {
+                    renderHtmlPreview(currentRawTextContent);
+                } else {
+                    renderRawContentWithLineNumbers(historySnapshot, currentRawTextContent);
+                }
             } else if (historySnapshot) {
                 historySnapshot.innerHTML = `<div style="color: var(--danger); padding: 1.5rem;">Failed to load snapshot version: ${escapeHtml(data.error || 'Unknown error')}</div>`;
             }
@@ -1167,6 +1254,99 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
+    function updateRawBeautifyBtnState() {
+        const btn = document.getElementById('btnRawBeautify');
+        if (btn) {
+            if (isRawBeautified) {
+                btn.className = 'btn btn-primary btn-sm';
+                btn.innerHTML = '✨ Beautified (Undo)';
+            } else {
+                btn.className = 'btn btn-secondary btn-sm';
+                btn.innerHTML = '✨ Beautify Code';
+            }
+        }
+    }
+
+    function renderHtmlPreview(htmlContent) {
+        const previewContainer = document.getElementById('historyHtmlPreviewContainer');
+        const previewFrame = document.getElementById('historyHtmlPreviewFrame');
+        const rawContainer = document.getElementById('historySnapshot');
+
+        if (previewContainer && previewFrame) {
+            rawContainer.style.display = 'none';
+            previewContainer.style.display = 'block';
+
+            const iframeDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(htmlContent || '<div style="font-family: sans-serif; padding: 20px; color: #64748b;">No HTML content to preview</div>');
+            iframeDoc.close();
+        }
+    }
+
+    function toggleHtmlPreview() {
+        const previewContainer = document.getElementById('historyHtmlPreviewContainer');
+        const rawContainer = document.getElementById('historySnapshot');
+        const btn = document.getElementById('btnRawPreviewHtml');
+
+        isRawHtmlPreviewActive = !isRawHtmlPreviewActive;
+
+        if (isRawHtmlPreviewActive) {
+            renderHtmlPreview(currentRawTextContent);
+            if (btn) {
+                btn.className = 'btn btn-primary btn-sm';
+                btn.innerHTML = '📄 Show Raw Code';
+            }
+        } else {
+            if (previewContainer) previewContainer.style.display = 'none';
+            if (rawContainer) {
+                rawContainer.style.display = 'block';
+                const displayText = isRawBeautified ? beautifyContent(currentRawTextContent) : currentRawTextContent;
+                renderRawContentWithLineNumbers(rawContainer, displayText);
+            }
+            if (btn) {
+                btn.className = 'btn btn-secondary btn-sm';
+                btn.innerHTML = '👁️ Preview HTML';
+            }
+        }
+    }
+
+    // Event listener for Beautify button
+    document.getElementById('btnRawBeautify')?.addEventListener('click', () => {
+        const rawContainer = document.getElementById('historySnapshot');
+        if (!rawContainer || !currentRawTextContent) return;
+
+        // If in HTML preview mode, switch back to raw code
+        if (isRawHtmlPreviewActive) {
+            toggleHtmlPreview();
+        }
+
+        isRawBeautified = !isRawBeautified;
+        updateRawBeautifyBtnState();
+
+        const textToDisplay = isRawBeautified ? beautifyContent(currentRawTextContent) : currentRawTextContent;
+        renderRawContentWithLineNumbers(rawContainer, textToDisplay);
+        showToast(isRawBeautified ? 'Code formatted and beautified' : 'Reverted to original raw formatting', 'info');
+    });
+
+    // Event listener for HTML Preview button
+    document.getElementById('btnRawPreviewHtml')?.addEventListener('click', () => {
+        toggleHtmlPreview();
+    });
+
+    // Event listener for Copy Raw Content button
+    document.getElementById('btnRawCopy')?.addEventListener('click', () => {
+        if (!currentRawTextContent) {
+            showToast('No raw content available to copy', 'warning');
+            return;
+        }
+        const textToCopy = isRawBeautified ? beautifyContent(currentRawTextContent) : currentRawTextContent;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showToast('Raw content copied to clipboard!', 'success');
+        }).catch(() => {
+            showToast('Failed to copy to clipboard', 'error');
+        });
+    });
 
     function jumpAndHighlightRawLine(lineNo) {
         if (!lineNo || isNaN(lineNo)) return;
@@ -1190,6 +1370,19 @@ document.addEventListener('DOMContentLoaded', () => {
     window.viewHistory = async function(id) {
         currentHistoryMonitorId = id;
         currentRawLoadedFile = '';
+        currentRawTextContent = '';
+        isRawHtmlPreviewActive = false;
+        isRawBeautified = false;
+        updateRawBeautifyBtnState();
+
+        const previewContainer = document.getElementById('historyHtmlPreviewContainer');
+        if (previewContainer) previewContainer.style.display = 'none';
+        const previewBtn = document.getElementById('btnRawPreviewHtml');
+        if (previewBtn) {
+            previewBtn.className = 'btn btn-secondary btn-sm';
+            previewBtn.innerHTML = '👁️ Preview HTML';
+        }
+
         openModal('historyModal');
         const historySnapshot = document.getElementById('historySnapshot');
         const historyDiffTable = document.getElementById('historyDiffTable');
@@ -1218,13 +1411,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.success) {
                 historyTitle.textContent = `History & Diffs: ${data.monitor?.name || id}`;
+                currentRawTextContent = data.current_snapshot || data.latest_snapshot || '';
                 if (historySnapshot) {
-                    renderRawContentWithLineNumbers(historySnapshot, data.current_snapshot || data.latest_snapshot || '');
+                    renderRawContentWithLineNumbers(historySnapshot, currentRawTextContent);
                     currentRawLoadedFile = '';
                 }
                 
                 if (historyLogMeta) {
-                    historyLogMeta.textContent = `Total Checks: ${data.monitor?.check_count || 0} | Changes: ${data.monitor?.change_count || 0} | Group: ${data.monitor?.group || 'Ungrouped'}`;
+                    const lastChkStr = data.monitor?.last_check_at ? new Date(data.monitor.last_check_at).toLocaleString() : 'Never';
+                    historyLogMeta.textContent = `Total Checks: ${data.monitor?.check_count || 0} | Changes: ${data.monitor?.change_count || 0} | Last Checked: ${lastChkStr} | Group: ${data.monitor?.group || 'Ungrouped'}`;
                 }
 
                 currentHistorySnapshots = data.snapshots_list || [];
@@ -1235,16 +1430,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Populate Dropdowns
                 if (currentHistorySnapshots.length > 0) {
-                    let rawOpts = '<option value="">Latest Snapshot (Active)</option>';
+                    const firstSnap = currentHistorySnapshots[0];
+                    const firstStatusTag = firstSnap.change_status ? ` [${firstSnap.change_status}]` : '';
+                    const firstRecentLabel = `${firstSnap.time} (${firstSnap.size}B)${firstStatusTag} (Recent)`;
+
+                    let rawOpts = '';
                     let oldOpts = '<option value="">(Auto: Previous to New)</option>';
-                    let newOpts = '<option value="">Latest Snapshot (Active)</option>';
+                    let newOpts = '';
 
                     currentHistorySnapshots.forEach((snap, idx) => {
-                        const opt = `<option value="${escapeHtml(snap.file)}">${escapeHtml(snap.time)} (${snap.size}B)${idx === 0 ? ' [Latest]' : ''}</option>`;
+                        const statusTag = snap.change_status ? ` [${snap.change_status}]` : '';
+                        const recentSuffix = (idx === 0) ? ' (Recent)' : '';
+                        const labelText = `${snap.time} (${snap.size}B)${statusTag}${recentSuffix}`;
+                        const opt = `<option value="${escapeHtml(snap.file)}">${escapeHtml(labelText)}</option>`;
+
                         rawOpts += opt;
                         newOpts += opt;
                         if (idx > 0) {
-                            oldOpts += `<option value="${escapeHtml(snap.file)}">${escapeHtml(snap.time)} (${snap.size}B)${idx === 1 ? ' [Previous]' : ''}</option>`;
+                            oldOpts += `<option value="${escapeHtml(snap.file)}">${escapeHtml(labelText)}</option>`;
                         }
                     });
 
@@ -1556,7 +1759,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success && data.stats) {
                 const statValChanges = document.getElementById('statValChanges');
                 const statValErrors = document.getElementById('statValErrors');
-                if (statValChanges) statValChanges.textContent = Number(data.stats.total_changes || 0).toLocaleString();
+                const activeChanges = data.stats.active_changes !== undefined ? data.stats.active_changes : (data.stats.total_changes || 0);
+                if (statValChanges) statValChanges.textContent = Number(activeChanges).toLocaleString();
                 if (statValErrors) statValErrors.textContent = Number(data.stats.total_errors || 0).toLocaleString();
             }
         } catch (e) {
@@ -1913,6 +2117,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 showToast(archive ? 'Change archived' : 'Change unarchived', 'success');
                 loadAllChanges();
+                refreshDashboardStats();
             } else {
                 showToast(data.error || 'Failed to update archive state', 'error');
             }
@@ -1956,6 +2161,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     showToast(`Archived ${data.count} change record(s)`, 'success');
                     loadAllChanges();
+                    refreshDashboardStats();
                 } else {
                     showToast(data.error || 'Failed to archive changes', 'error');
                 }

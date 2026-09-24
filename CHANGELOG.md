@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-09-24]
+### Added
+- **Deployment Documentation**:
+  - Added short, structured deployment guide to [README.md](file:///Users/bharat/Projects/changemonitor/README.md) covering automated GitHub Actions SFTP/FTP, manual cPanel upload, and local server testing.
+- **Raw Content Beautifier & Visual HTML Preview**:
+  - Added **✨ Beautify Code** button in the Raw Content toolbar to format/indent JSON, CSS, JavaScript, HTML, and XML.
+  - Added **👁️ Preview HTML** button to toggle a sandboxed iframe visual render of the snapshot.
+  - Added **📋 Copy** button to quickly copy formatted or raw content to the clipboard.
+
+### Changed
+- **Snapshot Storage Deduplication & Informative Version Labels**:
+  - Checks without content changes no longer generate redundant timestamped archive snapshot files (`snap_*.txt`); only `latest.txt` and the single latest snapshot are preserved.
+  - Added "Last Checked: [timestamp]" metadata in the History modal header.
+  - Formatted snapshot dropdown options to dynamically compute sequential diffs and display accurate change tags (e.g., `2026-09-18 02:29:08 (113B) [Small Change] (Recent)`, `2026-09-18 02:06:11 (133B) [Small Change]`, `[No Change]`, `[Baseline]`).
+
+### Fixed
+- **Changes Detected Count Excludes Archived Records**:
+  - Dashboard stat card "Changes Detected" (`#statValChanges`) and `get_stats` API now dynamically calculate unarchived/active changes via [`Storage::countActiveChanges()`](file:///Users/bharat/Projects/changemonitor/includes/storage.php#L1160-L1170), excluding archived items.
+  - Live metric updates on change record archiving and unarchiving.
+
 ## [2026-09-22]
 ### Added
 - **Paste cURL and Target Form Autofill**:

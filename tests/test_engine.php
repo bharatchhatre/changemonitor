@@ -276,6 +276,47 @@ $logsAfter = Storage::getLogs(search: 'Test Log Message for Deletion');
 assert(count($logsAfter) === 0, "Deleted log entry still present in error log");
 echo "✅ Storage Selective Log Entry Deletion & Date Filter Test Passed\n";
 
+// Test countActiveChanges calculation
+$testChangeEvent2 = Storage::saveChangeEvent(
+    'mon_test_event',
+    "Line 1\nStatus: Old2\nLine 3",
+    "Line 1\nStatus: New2\nLine 3",
+    [
+        'added_count' => 1,
+        'removed_count' => 1,
+        'total_changed' => 2,
+        'is_big_change' => false
+    ]
+);
+$activeChangesBefore = Storage::countActiveChanges('mon_test_event');
+assert($activeChangesBefore === 1, "countActiveChanges failed for new event");
+Storage::archiveChangeEvents([$testChangeEvent2['id']], true);
+$activeChangesAfterArchive = Storage::countActiveChanges('mon_test_event');
+assert($activeChangesAfterArchive === 0, "countActiveChanges should exclude archived events");
+Storage::deleteChangeEvents([$testChangeEvent2['id']]);
+echo "✅ Storage countActiveChanges Excluding Archived Test Passed\n";
+
+// Test Snapshot Deduplication (Only one copy preserved on no-change)
+$testSnapMonId = 'mon_snap_test_' . uniqid();
+$snap1 = Storage::saveSnapshot($testSnapMonId, "Sample Baseline Content", true);
+$snapList1 = Storage::getSnapshotList($testSnapMonId);
+assert(count($snapList1) === 1, "Expected 1 initial snapshot file");
+
+// Second check with no change (isChange = false)
+$snap2 = Storage::saveSnapshot($testSnapMonId, "Sample Baseline Content", false);
+$snapList2 = Storage::getSnapshotList($testSnapMonId);
+assert(count($snapList2) === 1, "Duplicate snapshot created despite no change");
+$latestContent = Storage::getLatestSnapshot($testSnapMonId);
+assert($latestContent === "Sample Baseline Content", "Latest snapshot content corrupted");
+echo "✅ Snapshot Deduplication on No-Change Checks Passed\n";
+
+// Clean up snapshot test directory
+$snapTestDir = CM_HISTORY_DIR . '/' . $testSnapMonId;
+if (is_dir($snapTestDir)) {
+    array_map('unlink', glob("$snapTestDir/*.*") ?: []);
+    @rmdir($snapTestDir);
+}
+
 // Clean up test history directory
 $testDir = CM_HISTORY_DIR . '/mon_test_event';
 if (is_dir($testDir)) {

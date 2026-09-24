@@ -124,6 +124,7 @@ $csrfToken = Auth::getCsrfToken();
 $activeMonitors = [];
 $inactiveMonitors = [];
 $changesToday = $stats['checks_by_date'][date('Y-m-d')]['changes'] ?? 0;
+$activeChangesCount = Storage::countActiveChanges();
 $groups = Storage::getGroups();
 
 // Calculate ungrouped count
@@ -240,7 +241,7 @@ $trashCount = count($trash);
                     <span>Changes Detected 🔍</span>
                     <span class="unread-badge" id="unreadBadgeChanges" style="display: none;">NEW</span>
                 </div>
-                <div class="stat-value" id="statValChanges"><?= number_format($stats['total_changes'] ?? 0) ?></div>
+                <div class="stat-value" id="statValChanges"><?= number_format($activeChangesCount) ?></div>
                 <div class="stat-desc"><?= $changesToday ?> changes detected today (click to inspect)</div>
             </div>
             <div class="stat-card stat-danger stat-card-clickable" id="statCardErrors" title="Click to view error log"
@@ -1638,13 +1639,24 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Raw Snapshot Selector (Raw Mode) -->
-                    <div id="historyRawControls" style="display: none; align-items: center; gap: 0.5rem;">
+                    <div id="historyRawControls" style="display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                         <label for="snapshotSelect"
                             style="font-size: 0.8rem; color: var(--text-muted);">Version:</label>
                         <select id="snapshotSelect" class="form-control"
                             style="min-height: 32px; padding: 0.2rem 0.5rem; font-size: 0.8rem; width: auto;">
                             <option value="">Latest Captured Snapshot</option>
                         </select>
+                        <div class="raw-tools-btn-group" style="display: inline-flex; gap: 0.35rem; align-items: center; margin-left: 0.25rem;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawBeautify" title="Format and beautify JSON, CSS, JS, XML or HTML code" style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
+                                ✨ Beautify Code
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawPreviewHtml" title="Toggle rendered visual HTML preview" style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
+                                👁️ Preview HTML
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawCopy" title="Copy raw snapshot to clipboard" style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
+                                📋 Copy
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1657,6 +1669,15 @@ $trashCount = count($trash);
                 <!-- Container 2: Raw Text Snapshot -->
                 <div class="diff-container" id="historySnapshot"
                     style="max-height: 460px; display: none; overflow-y: auto; padding: 0;"></div>
+
+                <!-- Container 2b: HTML Preview (Sandboxed iframe) -->
+                <div id="historyHtmlPreviewContainer"
+                    style="max-height: 460px; height: 460px; display: none; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #ffffff;">
+                    <iframe id="historyHtmlPreviewFrame"
+                        sandbox="allow-same-origin allow-scripts"
+                        style="width: 100%; height: 100%; border: none; background: #ffffff;"
+                        title="HTML Preview Frame"></iframe>
+                </div>
 
                 <!-- Container 3: Monitor Change Events List -->
                 <div id="historyChangesContainer" style="max-height: 460px; overflow-y: auto; display: none;">

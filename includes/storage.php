@@ -688,29 +688,41 @@ class Storage {
         return $deletedCount;
     }
 
-    public static function saveSnapshot(string $monitorId, string $content): string {
+    public static function saveSnapshot(string $monitorId, string $content, bool $isChange = true): string {
         $dir = CM_HISTORY_DIR . '/' . $monitorId;
         if (!is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
-        // Save current snapshot
+        // Always save latest snapshot
         file_put_contents($dir . '/latest.txt', $content, LOCK_EX);
-        // Save timestamped archive
-        $baseName = 'snap_' . date('Ymd_His') . '.txt';
-        $archiveFile = $dir . '/' . $baseName;
-        file_put_contents($archiveFile, $content, LOCK_EX);
 
-        // Keep at most 30 recent snapshot files
-        $files = glob($dir . '/snap_*.txt');
-        if ($files && count($files) > 30) {
-            sort($files);
-            $toDelete = array_slice($files, 0, count($files) - 30);
-            foreach ($toDelete as $oldFile) {
-                @unlink($oldFile);
+        // Only create new timestamped snapshot archive when change detected or initial
+        if ($isChange) {
+            $baseName = 'snap_' . date('Ymd_His') . '.txt';
+            $archiveFile = $dir . '/' . $baseName;
+            file_put_contents($archiveFile, $content, LOCK_EX);
+
+            // Keep at most 30 recent snapshot files
+            $files = glob($dir . '/snap_*.txt');
+            if ($files && count($files) > 30) {
+                sort($files);
+                $toDelete = array_slice($files, 0, count($files) - 30);
+                foreach ($toDelete as $oldFile) {
+                    @unlink($oldFile);
+                }
             }
+
+            return $baseName;
         }
 
-        return $baseName;
+        // When no change, return latest existing snapshot file name or latest.txt
+        $files = glob($dir . '/snap_*.txt');
+        if ($files) {
+            rsort($files);
+            return basename($files[0]);
+        }
+
+        return 'latest.txt';
     }
 
     /**
@@ -1043,8 +1055,34 @@ class Storage {
         }
 
         rsort($files); // Newest first
+
+        // Read change events to map snapshot files to change status
+        $changesFile = $dir . '/changes.json';
+        $changes = file_exists($changesFile) ? (json_decode(file_get_contents($changesFile), true) ?: []) : [];
+        $fileChangeMap = [];
+        foreach ($changes as $chg) {
+            $newFile = $chg['new_snapshot_file'] ?? '';
+            if (!empty($newFile)) {
+                $status = !empty($chg['is_big_change']) ? 'Big Change' : 'Small Change';
+                $fileChangeMap[$newFile] = $status;
+            }
+        }
+
         $list = [];
+        $totalFiles = count($files);
+
+        // Compute adjacent snapshot diffs to accurately identify change status
+        $snapshotContents = [];
         foreach ($files as $filePath) {
+            $baseName = basename($filePath);
+            $snapshotContents[$baseName] = file_get_contents($filePath) ?: '';
+        }
+
+        require_once __DIR__ . '/diff_formatter.php';
+        $monitor = self::getMonitor($monitorId) ?? ['type' => 'html_full'];
+        $type = $monitor['type'] ?? 'html_full';
+
+        foreach ($files as $idx => $filePath) {
             $baseName = basename($filePath);
             // snap_20260917_002530.txt -> formatted date
             if (preg_match('/^snap_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.txt$/', $baseName, $m)) {
@@ -1053,10 +1091,31 @@ class Storage {
                 $formattedTime = date('Y-m-d H:i:s', filemtime($filePath));
             }
 
+            // Determine change status label
+            if (isset($fileChangeMap[$baseName])) {
+                $changeStatus = $fileChangeMap[$baseName];
+            } elseif ($idx === $totalFiles - 1) {
+                $changeStatus = 'Baseline';
+            } else {
+                // Compare with older adjacent snapshot ($idx + 1)
+                $prevFile = basename($files[$idx + 1]);
+                $currContent = $snapshotContents[$baseName] ?? '';
+                $prevContent = $snapshotContents[$prevFile] ?? '';
+
+                if (hash('sha256', $currContent) === hash('sha256', $prevContent)) {
+                    $changeStatus = 'No Change';
+                } else {
+                    $diff = DiffFormatter::computeContextualDiff($prevContent, $currContent, $type, 30);
+                    $changeStatus = !empty($diff['is_big_change']) ? 'Big Change' : 'Small Change';
+                }
+            }
+
             $list[] = [
                 'file' => $baseName,
                 'time' => $formattedTime,
                 'size' => filesize($filePath),
+                'change_status' => $changeStatus,
+                'is_recent' => ($idx === 0),
             ];
         }
 
@@ -1144,6 +1203,14 @@ class Storage {
             'checks_by_date' => [],
             'monitors_stats' => [],
         ]);
+    }
+
+    /**
+     * Count unarchived / active detected changes
+     */
+    public static function countActiveChanges(?string $monitorId = null): int {
+        $events = self::getChangeEvents(monitorId: $monitorId, includeArchived: false, limit: 10000);
+        return count($events);
     }
 
     // --- Authentication Storage ---

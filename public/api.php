@@ -703,6 +703,7 @@ try {
         // --- Get Stats & Analytics ---
         case 'get_stats':
             $stats = Storage::getStats();
+            $stats['active_changes'] = Storage::countActiveChanges();
             echo json_encode(['success' => true, 'stats' => $stats]);
             break;
 

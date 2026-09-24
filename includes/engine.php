@@ -187,7 +187,7 @@ class Engine {
         }
 
         Storage::saveMonitor($monitor);
-        $newSnapFile = Storage::saveSnapshot($monitorId, $newSnapshot);
+        $newSnapFile = Storage::saveSnapshot($monitorId, $newSnapshot, ($hasChanged || $isInitial));
         Storage::recordCheckStats($monitorId, true, $hasChanged, $durationMs, $httpCode);
 
         // History Logging & Notifications
