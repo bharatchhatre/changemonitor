@@ -794,6 +794,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('monitorModalTitle').textContent = 'Add New Target Monitor';
             document.getElementById('monitorId').value = '';
             document.getElementById('previewOutput').style.display = 'none';
+            latestFetchedRawBody = '';
+            latestFetchedContentType = '';
+            latestFetchedUrl = '';
+            const qsFilter = document.getElementById('qsFilterInput');
+            if (qsFilter) qsFilter.value = '';
             openModal('monitorModal');
         });
     }
@@ -843,6 +848,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const previewOutput = document.getElementById('previewOutput');
         if (previewOutput) previewOutput.style.display = 'none';
+
+        // Invalidate cached body so quick selector fetches fresh data for this specific monitor
+        latestFetchedRawBody = '';
+        latestFetchedContentType = '';
+        latestFetchedUrl = '';
+        const qsFilter = document.getElementById('qsFilterInput');
+        if (qsFilter) qsFilter.value = '';
 
         openModal('monitorModal');
     };
@@ -917,9 +929,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Cache latest fetched raw body for quick selector
+    // Cache latest fetched raw body and its URL for quick selector
     let latestFetchedRawBody = '';
     let latestFetchedContentType = '';
+    let latestFetchedUrl = '';
 
     // --- Test & Live Preview Selector ---
     const testPreviewBtn = document.getElementById('testPreviewBtn');
@@ -969,6 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success) {
                     latestFetchedRawBody = data.raw_body || '';
                     latestFetchedContentType = data.content_type || '';
+                    latestFetchedUrl = url;
                     previewMeta.innerHTML = `<span class="badge badge-active">HTTP ${data.http_code}</span> &bull; Extracted Size: ${data.extracted_length} chars &bull; Speed: ${data.duration_ms}ms`;
                     previewContent.textContent = data.extracted || '(Empty match result)';
                     showToast('Extraction preview successful!', 'success');
@@ -1121,9 +1135,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.raw_body) {
                 latestFetchedRawBody = data.raw_body;
                 latestFetchedContentType = data.content_type || '';
+                latestFetchedUrl = url;
                 renderQuickSelectorTree(latestFetchedRawBody, document.getElementById('monitorType')?.value || 'html_full');
             } else if (data.extracted) {
                 latestFetchedRawBody = data.extracted;
+                latestFetchedUrl = url;
                 renderQuickSelectorTree(latestFetchedRawBody, document.getElementById('monitorType')?.value || 'html_full');
             } else {
                 if (placeholder) placeholder.innerHTML = `<div style="color: var(--danger);">Failed to fetch target body: ${escapeHtml(data.error || 'Empty response')}</div>`;
@@ -1309,7 +1325,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function openVisualQuickSelector() {
         syncQuickSelectorTags();
         openModal('quickSelectorModal');
-        if (latestFetchedRawBody) {
+        const currentUrl = (document.getElementById('monitorUrl')?.value || '').trim();
+        if (latestFetchedRawBody && latestFetchedUrl === currentUrl) {
             renderQuickSelectorTree(latestFetchedRawBody, document.getElementById('monitorType')?.value || 'html_full');
         } else {
             fetchForQuickSelector();

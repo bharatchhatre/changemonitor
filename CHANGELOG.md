@@ -19,6 +19,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Added default ignore selector field to **Bulk Add Targets** modal.
   - Added selector & ignore path batch update checkbox and inputs to **Bulk Edit Targets** modal.
 
+### Fixed
+- **Visual Quick Selector Target Cache Invalidation**:
+  - Invalidate cached response body and URL when switching between different monitors or clicking "+ Add Target", ensuring the visual tree inspector always fetches and renders the live response structure for the currently active monitor.
+
 ## [2026-09-24]
 ### Added
 - **Deployment Documentation**:
