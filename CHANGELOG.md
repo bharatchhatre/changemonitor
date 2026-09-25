@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-09-25]
+### Added
+- **Ignore Part of Monitor (Noise & Dynamic Timestamp Filter)**:
+  - Added `ignore_selector` support across all monitor types in [`Extractor`](file:///Users/bharat/Projects/changemonitor/includes/extractor.php), [`Engine`](file:///Users/bharat/Projects/changemonitor/includes/engine.php), [`Storage`](file:///Users/bharat/Projects/changemonitor/includes/storage.php), and [`api.php`](file:///Users/bharat/Projects/changemonitor/public/api.php).
+  - Strips dynamic uninteresting paths before hashing and comparison (e.g. JSON `$.timestamp`, `data.meta.*`, HTML `.footer`, `.ad-banner`, XPath `//div[@id='ads']`, or Regex patterns) to eliminate false positive change alerts.
+- **Multiple Selector / Path / Pattern Support**:
+  - Monitors now support composite multiple selectors (separated by commas or newlines) for JSON (`status, data.items[0].price`), CSS (`.price, .desc`), XPath, and Regex.
+- **Interactive Visual Quick Selector UI**:
+  - Added **"🎯 Visual Quick Picker"** modal and toolbar buttons in the Add/Edit Monitor modal and Live Preview panel.
+  - Interactively displays the response structure as an expandable, searchable JSON key tree or HTML DOM node tree with live click actions: **"🎯 Select"** and **"🚫 Ignore"**.
+  - Interactive tags bar with instant removal chips for included and ignored paths.
+- **Bulk Add & Bulk Edit Integration**:
+  - Added default ignore selector field to **Bulk Add Targets** modal.
+  - Added selector & ignore path batch update checkbox and inputs to **Bulk Edit Targets** modal.
+
 ## [2026-09-24]
 ### Added
 - **Deployment Documentation**:

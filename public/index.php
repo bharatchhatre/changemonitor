@@ -1144,10 +1144,31 @@ $trashCount = count($trash);
 
                     <div class="form-grid">
                         <div class="form-group">
-                            <label class="form-label" for="monitorSelector">Selector / Path / Pattern</label>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                                <label class="form-label" for="monitorSelector" style="margin: 0;">Selector / Path / Pattern</label>
+                                <button type="button" class="btn btn-secondary btn-sm" id="btnOpenQuickSelector" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; min-height: 26px; display: inline-flex; align-items: center; gap: 0.3rem;" title="Interactively pick HTML elements or JSON keys from live page response">
+                                    <span>🎯</span> Visual Quick Picker
+                                </button>
+                            </div>
                             <input type="text" id="monitorSelector" class="form-control"
-                                placeholder="e.g. //div[@class='price'] or data.status">
+                                placeholder="e.g. .price, #stock, or data.items[0].price (multiple allowed)">
+                            <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                Multi-selector supported: separate with commas or newlines (e.g. <code>.title, .price</code>)
+                            </div>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label" for="monitorIgnoreSelector">
+                                🚫 Ignore Part of Monitor (Optional)
+                            </label>
+                            <input type="text" id="monitorIgnoreSelector" class="form-control"
+                                placeholder="e.g. $.timestamp, .footer, or //div[@id='ads']">
+                            <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                Stripped before comparing: JSON (e.g. <code>$.timestamp, data.meta.*</code>), HTML (e.g. <code>.banner, #ads</code>), or Regex
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="monitorTemplate">Browser Request Profile</label>
                             <select id="monitorTemplate" class="form-control">
@@ -1157,9 +1178,6 @@ $trashCount = count($trash);
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                    </div>
-
-                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="monitorInterval">Standard Interval (Minutes)</label>
                             <input type="number" id="monitorInterval" class="form-control" min="1" value="15">
@@ -1247,7 +1265,12 @@ $trashCount = count($trash);
                     <!-- Live Test Preview Output Box -->
                     <div id="previewOutput"
                         style="display: none; margin-top: 1.5rem; background: var(--bg-code); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                        <div id="previewMeta" style="font-size: 0.8rem; margin-bottom: 0.5rem;"></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <div id="previewMeta" style="font-size: 0.8rem;"></div>
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnPreviewLaunchQuickPicker" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; min-height: 26px;">
+                                🎯 Open Visual Quick Picker
+                            </button>
+                        </div>
                         <div id="previewContent"
                             style="font-family: var(--font-mono); font-size: 0.8rem; max-height: 180px; overflow-y: auto; color: var(--info); white-space: pre-wrap;">
                         </div>
@@ -1258,6 +1281,69 @@ $trashCount = count($trash);
                     <button type="submit" class="btn btn-primary">Save Target</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Interactive Visual Quick Selector Modal -->
+    <div class="modal-backdrop" id="quickSelectorModal">
+        <div class="modal-dialog" style="max-width: 880px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <div class="modal-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>🎯 Visual Quick Selector & Ignore Picker</span>
+                </div>
+                <button type="button" class="modal-close" onclick="closeModal('quickSelectorModal')">&times;</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 1.25rem;">
+                <div style="background: var(--bg-subtle); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <div style="font-size: 0.82rem; color: var(--text-secondary);">
+                        Click on any JSON key or HTML DOM element below to immediately <strong>+ Include in Selector</strong> or <strong>🚫 Add to Ignore List</strong>.
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="text" id="qsFilterInput" class="form-control" placeholder="Search tree / elements..." style="width: 200px; padding: 0.3rem 0.6rem; font-size: 0.8rem; min-height: 32px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="qsRefreshFetchBtn" style="padding: 0.3rem 0.75rem; min-height: 32px; font-size: 0.8rem;">🔄 Fetch Target</button>
+                    </div>
+                </div>
+
+                <!-- Current Active Selectors Summary Bar -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                            <strong style="font-size: 0.8rem; color: var(--success);">🎯 Monitored Target Path(s):</strong>
+                            <button type="button" class="btn btn-secondary btn-sm" id="qsClearSelectorBtn" style="padding: 0.1rem 0.4rem; font-size: 0.7rem; min-height: 20px;">Clear</button>
+                        </div>
+                        <div id="qsCurrentSelectorTags" style="display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 24px; font-family: var(--font-mono); font-size: 0.78rem;">
+                            <span style="color: var(--text-muted); font-style: italic;">(Default: Whole document / body)</span>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                            <strong style="font-size: 0.8rem; color: var(--danger);">🚫 Ignored Path(s):</strong>
+                            <button type="button" class="btn btn-secondary btn-sm" id="qsClearIgnoreBtn" style="padding: 0.1rem 0.4rem; font-size: 0.7rem; min-height: 20px;">Clear</button>
+                        </div>
+                        <div id="qsCurrentIgnoreTags" style="display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 24px; font-family: var(--font-mono); font-size: 0.78rem;">
+                            <span style="color: var(--text-muted); font-style: italic;">(None)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual Interactive Tree Explorer Container -->
+                <div id="qsTreeContainer" style="background: var(--bg-code); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; min-height: 280px; max-height: 420px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.82rem;">
+                    <div id="qsTreePlaceholder" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
+                        <p>Click <strong>"Fetch Target"</strong> or <strong>"Test & Live Preview"</strong> to load and interactively explore the live response structure.</p>
+                    </div>
+                    <div id="qsTreeContent" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                    Changes are automatically applied to your monitor configuration.
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="button" class="btn btn-primary" onclick="closeModal('quickSelectorModal')">Done & Apply</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1319,8 +1405,16 @@ $trashCount = count($trash);
                         <div class="form-group">
                             <label class="form-label" for="bulkDefaultSelector">Selector / Path (Optional)</label>
                             <input type="text" id="bulkDefaultSelector" class="form-control"
-                                placeholder="Applied to all targets (optional)">
+                                placeholder="e.g. .price or data.items[0]">
                         </div>
+                        <div class="form-group">
+                            <label class="form-label" for="bulkDefaultIgnoreSelector">Ignore Selector / Path (Optional)</label>
+                            <input type="text" id="bulkDefaultIgnoreSelector" class="form-control"
+                                placeholder="e.g. $.timestamp or .ad-banner">
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="bulkDefaultTemplate">Browser Request Profile</label>
                             <select id="bulkDefaultTemplate" class="form-control">
@@ -1330,14 +1424,12 @@ $trashCount = count($trash);
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                    </div>
-
-                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="bulkDefaultInterval">Check Interval (Minutes)</label>
                             <input type="number" id="bulkDefaultInterval" class="form-control" min="1"
                                 value="<?= (int) ($settings['default_interval_mins'] ?? 15) ?>">
                         </div>
+                    </div>
                         <div class="form-group">
                             <label class="form-label" for="bulkDefaultStatus">Initial Status</label>
                             <select id="bulkDefaultStatus" class="form-control">
@@ -1434,6 +1526,27 @@ $trashCount = count($trash);
                         <div id="bulkEditGroupFields" style="display: none; margin-top: 0.5rem;">
                             <input type="text" id="bulkEditGroupVal" class="form-control" list="existingGroupsList"
                                 placeholder="Enter group name or 'Ungrouped'">
+                        </div>
+                    </div>
+
+                    <!-- Field: Selector & Ignore Rules -->
+                    <div
+                        style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
+                        <label class="checkbox-label"
+                            style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
+                            <input type="checkbox" id="bulkEditApplySelector"> Update Selectors & Ignore Paths
+                        </label>
+                        <div id="bulkEditSelectorFields" style="display: none; margin-top: 0.5rem;">
+                            <div class="form-group" style="margin-bottom: 0.5rem;">
+                                <label class="form-label" for="bulkEditSelectorVal">Selector / Path / Pattern</label>
+                                <input type="text" id="bulkEditSelectorVal" class="form-control"
+                                    placeholder="e.g. .price, #stock or data.items[0].price">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label class="form-label" for="bulkEditIgnoreSelectorVal">🚫 Ignore Selector / Path</label>
+                                <input type="text" id="bulkEditIgnoreSelectorVal" class="form-control"
+                                    placeholder="e.g. $.timestamp or .ad-banner">
+                            </div>
                         </div>
                     </div>
 

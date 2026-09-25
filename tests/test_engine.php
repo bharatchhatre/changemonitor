@@ -14,21 +14,47 @@ require_once __DIR__ . '/../includes/engine.php';
 echo "=== Running ChangeMonitor Unit & Integration Tests ===\n";
 
 // 1. Test Extractor JSON
-$sampleJson = '{"status":"ok","data":{"items":[{"id":1,"price":"$99"},{"id":2,"price":"$149"}]}}';
+$sampleJson = '{"status":"ok","timestamp":1727255555,"data":{"items":[{"id":1,"price":"$99","last_updated":"now"},{"id":2,"price":"$149","last_updated":"now"}]}}';
 $jsonExtracted = Extractor::extract($sampleJson, 'json', 'data.items[0].price');
 assert($jsonExtracted['extracted'] === '$99', "JSON extraction test failed");
 echo "✅ JSON Extraction Test Passed: " . $jsonExtracted['extracted'] . "\n";
 
+// 1b. Test JSON with Ignore Selector (e.g. $.timestamp, last_updated)
+$jsonWithIgnore = Extractor::extract($sampleJson, 'json', '$', [], ['ignore_selector' => '$.timestamp, last_updated']);
+assert(!str_contains($jsonWithIgnore['extracted'], '"timestamp"'), "JSON ignore failed to strip $.timestamp");
+assert(!str_contains($jsonWithIgnore['extracted'], '"last_updated"'), "JSON ignore failed to strip last_updated in items");
+echo "✅ JSON Ignore Selector Test Passed\n";
+
+// 1c. Test Multiple JSON Selectors
+$multiJsonExtracted = Extractor::extract($sampleJson, 'json', 'status, data.items[0].price');
+assert(str_contains($multiJsonExtracted['extracted'], 'status') && str_contains($multiJsonExtracted['extracted'], '$99'), "Multi JSON selector failed");
+echo "✅ Multiple JSON Selectors Test Passed\n";
+
 // 2. Test Extractor XPath
-$sampleHtml = '<html><body><div id="content"><span class="price">$45.00</span><p class="desc">Sample product</p></div></body></html>';
+$sampleHtml = '<html><body><div id="content"><span class="price">$45.00</span><p class="desc">Sample product</p><div class="timestamp">2026-09-25 12:00</div></div></body></html>';
 $xpathExtracted = Extractor::extract($sampleHtml, 'xpath', '//span[@class="price"]', [], ['strip_tags' => true]);
 assert($xpathExtracted['extracted'] === '$45.00', "XPath extraction test failed");
 echo "✅ XPath Extraction Test Passed: " . $xpathExtracted['extracted'] . "\n";
 
-// 3. Test Extractor CSS Selector
+// 2b. Test HTML / XPath with Ignore Selector
+$htmlIgnored = Extractor::extract($sampleHtml, 'html_full', '', [], ['strip_tags' => true, 'ignore_selector' => '.timestamp']);
+assert(!str_contains($htmlIgnored['extracted'], '2026-09-25'), "HTML ignore selector failed to strip .timestamp");
+echo "✅ HTML / XPath Ignore Selector Test Passed\n";
+
+// 3. Test Extractor CSS Selector (including multiple CSS selectors)
 $cssExtracted = Extractor::extract($sampleHtml, 'css', '.desc', [], ['strip_tags' => true]);
 assert($cssExtracted['extracted'] === 'Sample product', "CSS extraction test failed");
 echo "✅ CSS Extraction Test Passed: " . $cssExtracted['extracted'] . "\n";
+
+$cssMultiExtracted = Extractor::extract($sampleHtml, 'css', '.price, .desc', [], ['strip_tags' => true]);
+assert(str_contains($cssMultiExtracted['extracted'], '$45.00') && str_contains($cssMultiExtracted['extracted'], 'Sample product'), "CSS multi-selector failed");
+echo "✅ CSS Multi-Selector Test Passed\n";
+
+// 3b. Test Regex with Ignore Pattern
+$sampleText = "Product: SuperWidget\nGenerated at: 14:55:00\nPrice: $299";
+$regexExtracted = Extractor::extract($sampleText, 'regex', '/Price: (\$?\d+)/', [], ['ignore_selector' => '/Generated at: [^\n]+/']);
+assert($regexExtracted['extracted'] === '$299', "Regex extraction failed");
+echo "✅ Regex Multi / Ignore Test Passed\n";
 
 // 4. Test Diff Engine
 $diff = Extractor::computeDiff("Line 1\nPrice: $10\nLine 3", "Line 1\nPrice: $20\nLine 3");

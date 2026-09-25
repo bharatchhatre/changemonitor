@@ -128,6 +128,7 @@ class Engine {
         $extractOptions = [
             'strip_tags' => !empty($monitor['strip_tags']),
             'trim_whitespace' => true,
+            'ignore_selector' => (string)($monitor['ignore_selector'] ?? ''),
         ];
         $extractResult = Extractor::extract($fetchResult['body'], $type, $selector, $fetchResult['headers'], $extractOptions);
 

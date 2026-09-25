@@ -67,18 +67,24 @@ try {
                 exit;
             }
 
+            $ignoreSelector = trim($input['ignore_selector'] ?? '');
             $extractResult = Extractor::extract(
                 $fetchResult['body'],
                 $type,
                 $selector,
                 $fetchResult['headers'],
-                ['strip_tags' => $stripTags, 'trim_whitespace' => true]
+                ['strip_tags' => $stripTags, 'trim_whitespace' => true, 'ignore_selector' => $ignoreSelector]
             );
 
             $extracted = $extractResult['extracted'] ?? '';
             // Ensure valid UTF-8
             if (!mb_check_encoding($extracted, 'UTF-8')) {
                 $extracted = mb_convert_encoding($extracted, 'UTF-8', 'UTF-8, ISO-8859-1, WINDOWS-1252');
+            }
+
+            $rawBody = $fetchResult['body'];
+            if (!mb_check_encoding($rawBody, 'UTF-8')) {
+                $rawBody = mb_convert_encoding($rawBody, 'UTF-8', 'UTF-8, ISO-8859-1, WINDOWS-1252');
             }
 
             echo json_encode([
@@ -88,6 +94,7 @@ try {
                 'duration_ms' => $fetchResult['duration_ms'],
                 'extracted' => $extracted,
                 'extracted_length' => strlen($extracted),
+                'raw_body' => (strlen($rawBody) <= 1000000) ? $rawBody : substr($rawBody, 0, 1000000),
                 'error' => $extractResult['error'],
             ], JSON_INVALID_UTF8_SUBSTITUTE);
             break;
@@ -107,6 +114,7 @@ try {
                 'group' => trim($input['group'] ?? 'General') ?: 'General',
                 'type' => $input['type'] ?? 'html_full',
                 'selector' => trim($input['selector'] ?? ''),
+                'ignore_selector' => trim($input['ignore_selector'] ?? ''),
                 'browser_template' => $input['browser_template'] ?? 'chrome_mac',
                 'custom_headers' => $input['custom_headers'] ?? '',
                 'cookies' => $input['cookies'] ?? '',
@@ -145,6 +153,7 @@ try {
                 'group' => trim($input['default_group'] ?? 'General') ?: 'General',
                 'type' => $input['default_type'] ?? 'html_full',
                 'selector' => trim($input['default_selector'] ?? ''),
+                'ignore_selector' => trim($input['default_ignore_selector'] ?? ''),
                 'browser_template' => $input['default_browser_template'] ?? 'chrome_mac',
                 'interval_mins' => max(1, (int)($input['default_interval_mins'] ?? 15)),
                 'timeout' => max(5, min(60, (int)($input['default_timeout'] ?? 25))),
@@ -174,6 +183,7 @@ try {
                     'group' => trim($item['group'] ?? $defaults['group']) ?: 'General',
                     'type' => $item['type'] ?? $defaults['type'],
                     'selector' => trim($item['selector'] ?? $defaults['selector']),
+                    'ignore_selector' => trim($item['ignore_selector'] ?? $defaults['ignore_selector']),
                     'browser_template' => $item['browser_template'] ?? $defaults['browser_template'],
                     'custom_headers' => $item['custom_headers'] ?? '',
                     'cookies' => $item['cookies'] ?? '',

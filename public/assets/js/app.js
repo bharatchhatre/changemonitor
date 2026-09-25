@@ -821,6 +821,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setVal('monitorGroup', data.group || 'General');
         setVal('monitorType', data.type || 'html_full');
         setVal('monitorSelector', data.selector);
+        setVal('monitorIgnoreSelector', data.ignore_selector);
         setVal('monitorTemplate', data.browser_template || 'chrome_mac');
         setVal('monitorInterval', data.interval_mins || 15);
         setVal('monitorHeaders', data.custom_headers);
@@ -875,6 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 group: document.getElementById('monitorGroup')?.value || 'General',
                 type: document.getElementById('monitorType')?.value || 'html_full',
                 selector: document.getElementById('monitorSelector')?.value || '',
+                ignore_selector: document.getElementById('monitorIgnoreSelector')?.value || '',
                 browser_template: document.getElementById('monitorTemplate')?.value || 'chrome_mac',
                 interval_mins: parseInt(document.getElementById('monitorInterval')?.value || '15', 10),
                 peak_schedule_enabled: document.getElementById('monitorPeakScheduleEnabled')?.checked || false,
@@ -915,6 +917,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Cache latest fetched raw body for quick selector
+    let latestFetchedRawBody = '';
+    let latestFetchedContentType = '';
+
     // --- Test & Live Preview Selector ---
     const testPreviewBtn = document.getElementById('testPreviewBtn');
     if (testPreviewBtn) {
@@ -938,6 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 url: url,
                 type: document.getElementById('monitorType').value,
                 selector: document.getElementById('monitorSelector').value,
+                ignore_selector: document.getElementById('monitorIgnoreSelector')?.value || '',
                 browser_template: document.getElementById('monitorTemplate').value,
                 custom_headers: document.getElementById('monitorHeaders').value,
                 cookies: document.getElementById('monitorCookies').value,
@@ -960,6 +967,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (data.success) {
+                    latestFetchedRawBody = data.raw_body || '';
+                    latestFetchedContentType = data.content_type || '';
                     previewMeta.innerHTML = `<span class="badge badge-active">HTTP ${data.http_code}</span> &bull; Extracted Size: ${data.extracted_length} chars &bull; Speed: ${data.duration_ms}ms`;
                     previewContent.textContent = data.extracted || '(Empty match result)';
                     showToast('Extraction preview successful!', 'success');
@@ -977,6 +986,338 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // ==========================================
+    // --- INTERACTIVE VISUAL QUICK SELECTOR ---
+    // ==========================================
+
+    function parseSelectorList(str) {
+        if (!str || !str.trim()) return [];
+        if (str.includes('\n')) {
+            return str.split('\n').map(s => s.trim()).filter(Boolean);
+        }
+        return str.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    function syncQuickSelectorTags() {
+        const selectorInput = document.getElementById('monitorSelector');
+        const ignoreInput = document.getElementById('monitorIgnoreSelector');
+        const incContainer = document.getElementById('qsCurrentSelectorTags');
+        const ignContainer = document.getElementById('qsCurrentIgnoreTags');
+
+        if (incContainer && selectorInput) {
+            const list = parseSelectorList(selectorInput.value);
+            if (list.length === 0) {
+                incContainer.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">(Default: Whole document / body)</span>';
+            } else {
+                incContainer.innerHTML = list.map(item => `
+                    <span class="qs-tag-pill qs-tag-pill-include">
+                        <span>${escapeHtml(item)}</span>
+                        <span class="qs-tag-remove" onclick="removeQuickSelectorItem('selector', '${escapeHtml(item).replace(/'/g, "\\'")}')" title="Remove">&times;</span>
+                    </span>
+                `).join('');
+            }
+        }
+
+        if (ignContainer && ignoreInput) {
+            const list = parseSelectorList(ignoreInput.value);
+            if (list.length === 0) {
+                ignContainer.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">(None)</span>';
+            } else {
+                ignContainer.innerHTML = list.map(item => `
+                    <span class="qs-tag-pill qs-tag-pill-ignore">
+                        <span>${escapeHtml(item)}</span>
+                        <span class="qs-tag-remove" onclick="removeQuickSelectorItem('ignore', '${escapeHtml(item).replace(/'/g, "\\'")}')" title="Remove">&times;</span>
+                    </span>
+                `).join('');
+            }
+        }
+    }
+
+    window.addQuickSelectorItem = function(targetType, path) {
+        path = (path || '').trim();
+        if (!path) return;
+        const inputId = (targetType === 'ignore') ? 'monitorIgnoreSelector' : 'monitorSelector';
+        const inputEl = document.getElementById(inputId);
+        if (!inputEl) return;
+
+        const currentItems = parseSelectorList(inputEl.value);
+        if (!currentItems.includes(path)) {
+            currentItems.push(path);
+            inputEl.value = currentItems.join(', ');
+            syncQuickSelectorTags();
+            showToast(`${targetType === 'ignore' ? '🚫 Added to Ignore List' : '🎯 Added to Selector'}: ${path}`, 'success');
+        } else {
+            showToast(`Already present in ${targetType === 'ignore' ? 'ignore list' : 'selector list'}`, 'info');
+        }
+    };
+
+    window.removeQuickSelectorItem = function(targetType, path) {
+        const inputId = (targetType === 'ignore') ? 'monitorIgnoreSelector' : 'monitorSelector';
+        const inputEl = document.getElementById(inputId);
+        if (!inputEl) return;
+
+        let currentItems = parseSelectorList(inputEl.value);
+        currentItems = currentItems.filter(p => p !== path);
+        inputEl.value = currentItems.join(', ');
+        syncQuickSelectorTags();
+        showToast(`Removed: ${path}`, 'info');
+    };
+
+    document.getElementById('qsClearSelectorBtn')?.addEventListener('click', () => {
+        const el = document.getElementById('monitorSelector');
+        if (el) el.value = '';
+        syncQuickSelectorTags();
+        showToast('Cleared monitored selector paths', 'info');
+    });
+
+    document.getElementById('qsClearIgnoreBtn')?.addEventListener('click', () => {
+        const el = document.getElementById('monitorIgnoreSelector');
+        if (el) el.value = '';
+        syncQuickSelectorTags();
+        showToast('Cleared ignored paths', 'info');
+    });
+
+    async function fetchForQuickSelector() {
+        const url = document.getElementById('monitorUrl')?.value;
+        if (!url) {
+            showToast('Please enter a target URL in the monitor form first', 'error');
+            return;
+        }
+
+        const placeholder = document.getElementById('qsTreePlaceholder');
+        const content = document.getElementById('qsTreeContent');
+        const refreshBtn = document.getElementById('qsRefreshFetchBtn');
+
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '⏳ Fetching...';
+        }
+        if (placeholder) {
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = '<div style="font-size: 1.5rem; margin-bottom: 0.5rem;">⏳</div><p>Fetching target body & analyzing structure...</p>';
+        }
+        if (content) content.style.display = 'none';
+
+        const payload = {
+            url: url,
+            type: document.getElementById('monitorType')?.value || 'html_full',
+            selector: '',
+            ignore_selector: '',
+            browser_template: document.getElementById('monitorTemplate')?.value || 'chrome_mac',
+            custom_headers: document.getElementById('monitorHeaders')?.value || '',
+            cookies: document.getElementById('monitorCookies')?.value || '',
+            strip_tags: false,
+            csrf_token: csrfToken,
+        };
+
+        try {
+            const res = await fetch('api.php?action=test_preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.raw_body) {
+                latestFetchedRawBody = data.raw_body;
+                latestFetchedContentType = data.content_type || '';
+                renderQuickSelectorTree(latestFetchedRawBody, document.getElementById('monitorType')?.value || 'html_full');
+            } else if (data.extracted) {
+                latestFetchedRawBody = data.extracted;
+                renderQuickSelectorTree(latestFetchedRawBody, document.getElementById('monitorType')?.value || 'html_full');
+            } else {
+                if (placeholder) placeholder.innerHTML = `<div style="color: var(--danger);">Failed to fetch target body: ${escapeHtml(data.error || 'Empty response')}</div>`;
+            }
+        } catch (err) {
+            if (placeholder) placeholder.innerHTML = `<div style="color: var(--danger);">Fetch error: ${escapeHtml(err.message)}</div>`;
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '🔄 Fetch Target';
+            }
+        }
+    }
+
+    function renderQuickSelectorTree(rawText, mode) {
+        const placeholder = document.getElementById('qsTreePlaceholder');
+        const content = document.getElementById('qsTreeContent');
+        if (!placeholder || !content) return;
+
+        const trimmed = (rawText || '').trim();
+        if (!trimmed) {
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = '<p style="color: var(--text-muted);">Response body is empty.</p>';
+            content.style.display = 'none';
+            return;
+        }
+
+        // Try JSON parsing first
+        let isJson = false;
+        let parsedJson = null;
+        if (mode === 'json' || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            try {
+                parsedJson = JSON.parse(trimmed);
+                isJson = true;
+            } catch (e) {
+                isJson = false;
+            }
+        }
+
+        placeholder.style.display = 'none';
+        content.style.display = 'block';
+        content.innerHTML = '';
+
+        if (isJson) {
+            content.innerHTML = buildJsonQuickTreeHtml(parsedJson, '$');
+        } else {
+            content.innerHTML = buildHtmlQuickTreeHtml(trimmed);
+        }
+
+        applyQuickSelectorFilter();
+    }
+
+    function buildJsonQuickTreeHtml(data, currentPath, depth = 0) {
+        if (depth > 8) return `<div style="padding-left: ${depth * 14}px; color: var(--text-muted);">(Max depth reached)</div>`;
+
+        let html = '';
+        const isArr = Array.isArray(data);
+        const keys = Object.keys(data || {});
+
+        keys.forEach(k => {
+            const val = data[k];
+            const nodePath = isArr ? `${currentPath}[${k}]` : (currentPath === '$' ? `$.${k}` : `${currentPath}.${k}`);
+            const isObj = (val !== null && typeof val === 'object');
+            const valType = (val === null) ? 'null' : typeof val;
+
+            let valDisplay = '';
+            if (isObj) {
+                valDisplay = Array.isArray(val) ? `Array(${val.length})` : `{...}`;
+            } else {
+                valDisplay = escapeHtml(String(val));
+                if (valDisplay.length > 50) valDisplay = valDisplay.substring(0, 50) + '...';
+            }
+
+            const valClass = `qs-type-${valType}`;
+
+            html += `
+                <div class="qs-tree-item" data-qs-search="${escapeHtml(k + ' ' + nodePath + ' ' + valDisplay).toLowerCase()}" style="margin-left: ${depth * 14}px;">
+                    <div class="qs-tree-node">
+                        <div style="display: flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 0.5rem;">
+                            <span class="qs-node-key" title="${nodePath}">${escapeHtml(k)}:</span>
+                            <span class="qs-node-val ${valClass}" title="${escapeHtml(String(val))}">${valDisplay}</span>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 0.5rem; opacity: 0.7;">(${nodePath})</span>
+                        </div>
+                        <div class="qs-node-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addQuickSelectorItem('selector', '${escapeHtml(nodePath).replace(/'/g, "\\'")}')" title="Include this exact JSON path in selector">
+                                🎯 Select
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addQuickSelectorItem('ignore', '${escapeHtml(nodePath).replace(/'/g, "\\'")}')" title="Ignore this key from change detection" style="color: var(--danger);">
+                                🚫 Ignore
+                            </button>
+                        </div>
+                    </div>
+            `;
+
+            if (isObj && val !== null && Object.keys(val).length > 0) {
+                html += buildJsonQuickTreeHtml(val, nodePath, depth + 1);
+            }
+
+            html += `</div>`;
+        });
+
+        return html;
+    }
+
+    function buildHtmlQuickTreeHtml(htmlString) {
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const body = doc.body || doc.documentElement;
+            if (!body) return '<div style="color: var(--text-muted);">Could not parse HTML DOM tree</div>';
+
+            return buildHtmlDomNodeTree(body, 0);
+        } catch (e) {
+            return `<div style="color: var(--danger);">HTML Parser error: ${escapeHtml(e.message)}</div>`;
+        }
+    }
+
+    function buildHtmlDomNodeTree(element, depth = 0) {
+        if (depth > 6 || !element) return '';
+        let html = '';
+
+        const children = Array.from(element.children || []);
+        children.forEach(el => {
+            const tag = el.tagName.toLowerCase();
+            if (['script', 'style', 'svg', 'noscript'].includes(tag)) return;
+
+            const idAttr = el.id ? `#${el.id}` : '';
+            const classAttr = el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
+            const suggestedSelector = idAttr || (classAttr ? `${tag}${classAttr}` : tag);
+            
+            // Brief text content preview
+            let textPreview = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+            if (textPreview.length > 40) textPreview = textPreview.substring(0, 40) + '...';
+
+            html += `
+                <div class="qs-tree-item" data-qs-search="${escapeHtml(tag + ' ' + idAttr + ' ' + classAttr + ' ' + textPreview).toLowerCase()}" style="margin-left: ${depth * 14}px;">
+                    <div class="qs-tree-node">
+                        <div style="display: flex; align-items: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 0.5rem;">
+                            <span class="qs-node-tag">&lt;${tag}&gt;</span>
+                            ${idAttr ? `<span style="color: #fbbf24; font-weight: 600; font-size: 0.75rem; margin-left: 0.25rem;">${escapeHtml(idAttr)}</span>` : ''}
+                            ${classAttr ? `<span class="qs-node-class">${escapeHtml(classAttr)}</span>` : ''}
+                            ${textPreview ? `<span class="qs-node-val" style="font-size: 0.75rem; opacity: 0.85;">"${escapeHtml(textPreview)}"</span>` : ''}
+                        </div>
+                        <div class="qs-node-actions">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addQuickSelectorItem('selector', '${escapeHtml(suggestedSelector).replace(/'/g, "\\'")}')" title="Include this CSS selector">
+                                🎯 Select
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="addQuickSelectorItem('ignore', '${escapeHtml(suggestedSelector).replace(/'/g, "\\'")}')" title="Ignore matching elements" style="color: var(--danger);">
+                                🚫 Ignore
+                            </button>
+                        </div>
+                    </div>
+            `;
+
+            if (el.children && el.children.length > 0) {
+                html += buildHtmlDomNodeTree(el, depth + 1);
+            }
+
+            html += `</div>`;
+        });
+
+        return html;
+    }
+
+    function applyQuickSelectorFilter() {
+        const filterInput = document.getElementById('qsFilterInput');
+        if (!filterInput) return;
+        const query = filterInput.value.toLowerCase().trim();
+
+        document.querySelectorAll('#qsTreeContent .qs-tree-item').forEach(item => {
+            if (!query) {
+                item.style.display = '';
+            } else {
+                const searchData = item.getAttribute('data-qs-search') || '';
+                item.style.display = searchData.includes(query) ? '' : 'none';
+            }
+        });
+    }
+
+    document.getElementById('qsFilterInput')?.addEventListener('input', applyQuickSelectorFilter);
+    document.getElementById('qsRefreshFetchBtn')?.addEventListener('click', fetchForQuickSelector);
+
+    function openVisualQuickSelector() {
+        syncQuickSelectorTags();
+        openModal('quickSelectorModal');
+        if (latestFetchedRawBody) {
+            renderQuickSelectorTree(latestFetchedRawBody, document.getElementById('monitorType')?.value || 'html_full');
+        } else {
+            fetchForQuickSelector();
+        }
+    }
+
+    document.getElementById('btnOpenQuickSelector')?.addEventListener('click', openVisualQuickSelector);
+    document.getElementById('btnPreviewLaunchQuickPicker')?.addEventListener('click', openVisualQuickSelector);
 
     // --- Action: Run Single Monitor ---
     window.runCheck = async function(id, btn) {
@@ -2517,6 +2858,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Toggle conditional bulk edit fields on checkbox changes
     const bulkEditCheckboxes = [
         { check: 'bulkEditApplyGroup', field: 'bulkEditGroupFields' },
+        { check: 'bulkEditApplySelector', field: 'bulkEditSelectorFields' },
         { check: 'bulkEditApplyInterval', field: 'bulkEditIntervalFields' },
         { check: 'bulkEditApplyTemplate', field: 'bulkEditTemplateFields' },
         { check: 'bulkEditApplyType', field: 'bulkEditTypeFields' },
@@ -2569,6 +2911,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const fields = {};
             if (document.getElementById('bulkEditApplyGroup')?.checked) {
                 fields.group = document.getElementById('bulkEditGroupVal')?.value || 'Ungrouped';
+            }
+            if (document.getElementById('bulkEditApplySelector')?.checked) {
+                fields.selector = document.getElementById('bulkEditSelectorVal')?.value || '';
+                fields.ignore_selector = document.getElementById('bulkEditIgnoreSelectorVal')?.value || '';
             }
             if (document.getElementById('bulkEditApplyInterval')?.checked) {
                 fields.interval_mins = parseInt(document.getElementById('bulkEditIntervalVal')?.value || '15', 10);
@@ -2843,6 +3189,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 default_group: document.getElementById('bulkDefaultGroup')?.value || 'General',
                 default_type: document.getElementById('bulkDefaultType').value,
                 default_selector: document.getElementById('bulkDefaultSelector').value,
+                default_ignore_selector: document.getElementById('bulkDefaultIgnoreSelector')?.value || '',
                 default_browser_template: document.getElementById('bulkDefaultTemplate').value,
                 default_interval_mins: parseInt(document.getElementById('bulkDefaultInterval').value, 10),
                 default_status: document.getElementById('bulkDefaultStatus').value,

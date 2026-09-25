@@ -209,6 +209,12 @@ class Storage {
             if (isset($fields['type']) && !empty($fields['type'])) {
                 $monitors[$id]['type'] = (string)$fields['type'];
             }
+            if (isset($fields['selector'])) {
+                $monitors[$id]['selector'] = trim((string)$fields['selector']);
+            }
+            if (isset($fields['ignore_selector'])) {
+                $monitors[$id]['ignore_selector'] = trim((string)$fields['ignore_selector']);
+            }
             if (isset($fields['timeout'])) {
                 $monitors[$id]['timeout'] = max(5, min(60, (int)$fields['timeout']));
             }
