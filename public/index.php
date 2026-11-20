@@ -46,7 +46,7 @@ if (!Auth::check()) {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Login &bull; <?= htmlspecialchars(cm_env('APP_NAME', 'Website Change Monitor')) ?></title>
-        <link rel="stylesheet" href="assets/css/style.css">
+        <link rel="stylesheet" href="assets/css/style.css?v=<?= CM_VERSION ?>">
         <style>
             .login-wrapper {
                 min-height: 100vh;
@@ -152,7 +152,7 @@ $trashCount = count($trash);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?= htmlspecialchars($csrfToken) ?>">
     <title><?= htmlspecialchars(cm_env('APP_NAME', 'Website Change Monitor')) ?> &bull; Dashboard</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/style.css?v=<?= CM_VERSION ?>">
 </head>
 
 <body>
@@ -1430,6 +1430,8 @@ $trashCount = count($trash);
                                 value="<?= (int) ($settings['default_interval_mins'] ?? 15) ?>">
                         </div>
                     </div>
+
+                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="bulkDefaultStatus">Initial Status</label>
                             <select id="bulkDefaultStatus" class="form-control">
@@ -1437,9 +1439,6 @@ $trashCount = count($trash);
                                 <option value="paused">Paused (Inactive)</option>
                             </select>
                         </div>
-                    </div>
-
-                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label" for="bulkDefaultTimeout">Timeout (Seconds)</label>
                             <input type="number" id="bulkDefaultTimeout" class="form-control" min="5" max="60"

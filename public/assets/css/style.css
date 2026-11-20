@@ -625,10 +625,20 @@ textarea.form-control {
     width: 100%;
     max-width: 800px;
     max-height: 90vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     box-shadow: var(--shadow-lg);
     transform: translateY(20px);
     transition: transform 0.2s ease;
+}
+
+.modal-dialog form {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
 }
 
 .modal-backdrop.open .modal-dialog {
@@ -641,6 +651,7 @@ textarea.form-control {
     align-items: center;
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 
 .modal-title {
@@ -665,6 +676,9 @@ textarea.form-control {
 
 .modal-body {
     padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 .modal-footer {
@@ -673,6 +687,8 @@ textarea.form-control {
     gap: 0.75rem;
     padding: 1.25rem 1.5rem;
     border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+    background: var(--bg-secondary);
 }
 
 .stat-card-clickable {

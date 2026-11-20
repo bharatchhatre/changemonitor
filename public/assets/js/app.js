@@ -46,6 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
 
     let currentActiveGroup = 'all';
+    try {
+        currentActiveGroup = sessionStorage.getItem('active_group') || 'all';
+    } catch (e) {}
 
     function getSelectedMonitorIds() {
         const activeSubtab = document.querySelector('.subtab-pane:not([style*="display: none"])') || document;
@@ -153,6 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Group Filter Row Visibility
     function filterRowsByGroup(groupName) {
         currentActiveGroup = groupName || 'all';
+        try {
+            sessionStorage.setItem('active_group', currentActiveGroup);
+        } catch (e) {}
 
         document.querySelectorAll('.group-pill').forEach(pill => {
             if (pill.getAttribute('data-group') === currentActiveGroup) {
@@ -443,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         // Initial pill count update on active subtab
         updateGroupPillCounts();
+        filterRowsByGroup(currentActiveGroup);
     }
 
     // --- Live Next Check Countdown Timer Ticker ---
