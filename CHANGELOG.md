@@ -6,13 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-20]
 ### Added
+- **Global & Individual WhatsApp (OpenWA) Notification Controls**:
+  - Added global setting `notify_whatsapp_on_change` in Settings modal and storage configuration.
+  - Added per-monitor `notify_whatsapp` checkbox, disabled by default across Add Target, Edit Target, and Bulk Add.
+  - Added `notify_whatsapp` support to Bulk Edit modal for batch updates.
+  - Updated notification dispatcher in [`Notifier`](file:///Users/bharat/Projects/changemonitor/includes/notifier.php) to require both global and individual monitor authorization before sending WhatsApp alerts.
+- **Bulk Edit UI Enhancement**:
+  - All field sections and dropdown containers in the Bulk Edit modal are now expanded and open by default with their checkboxes pre-selected for quick batch configuration.
+- **Bumped Minor Version to 1.5.0**:
+  - Synchronized `CM_VERSION` constant and cache-busting assets.
 - **Automated Government Portal Authentication & Anti-CSRF Manager**:
   - Added [`PortalAuth`](file:///Users/bharat/Projects/changemonitor/includes/portal_auth.php) helper supporting MHADA and CIDCO portals.
   - Automatically converts plaintext password to hex representation, executes login handshake, and securely caches session cookies on disk.
   - Synchronizes `AUTH_TOKEN`, `XSRF-TOKEN1`, and `XSRF-TOKEN2` cookies with matching `X-XSRF-TOKEN` request headers.
   - Added self-healing session recovery in [`Fetcher`](file:///Users/bharat/Projects/changemonitor/includes/fetcher.php) on 401/403 errors with automatic re-authentication.
   - Added `.env` configuration support for `MHADA_PAN`, `MHADA_PASSWORD`, `CIDCO_PAN`, `CIDCO_PASSWORD`, and `GOV_PROXY`.
-- **Bumped Minor Version to 1.4.0**:
+- **Version 1.4.0 Improvements**:
   - Fixed active group filter reset on save by persisting selected group across page reloads in `sessionStorage`.
   - Fixed modal layout distortion on large text inputs (e.g. 20+ lines in Bulk Add modal) with proper flex layout and inner scrolling body.
   - Added CSS cache-busting `?v=<?= CM_VERSION ?>` to `style.css`.

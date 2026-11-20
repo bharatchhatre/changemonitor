@@ -227,6 +227,9 @@ class Storage {
             if (isset($fields['notify_on_error'])) {
                 $monitors[$id]['notify_on_error'] = !empty($fields['notify_on_error']);
             }
+            if (isset($fields['notify_whatsapp'])) {
+                $monitors[$id]['notify_whatsapp'] = !empty($fields['notify_whatsapp']);
+            }
             if (isset($fields['peak_schedule_enabled'])) {
                 $monitors[$id]['peak_schedule_enabled'] = !empty($fields['peak_schedule_enabled']);
             }
@@ -394,6 +397,7 @@ class Storage {
             'openwa_api_url' => cm_env('OPENWA_API_URL', ''),
             'openwa_api_key' => cm_env('OPENWA_API_KEY', ''),
             'openwa_chat_id' => cm_env('OPENWA_CHAT_ID', ''),
+            'notify_whatsapp_on_change' => (bool)cm_env('NOTIFY_WHATSAPP_ON_CHANGE', false),
             'notify_on_change' => true,
             'notify_on_error' => true,
             'default_interval_mins' => 15,

@@ -136,7 +136,10 @@ class Notifier {
         }
 
         // 2. OpenWA (WhatsApp)
-        if (!empty($settings['openwa_api_url']) && !empty($settings['openwa_chat_id'])) {
+        // Requires both global setting notify_whatsapp_on_change AND monitor-level notify_whatsapp
+        $globalWhatsappEnabled = !empty($settings['notify_whatsapp_on_change']);
+        $monitorWhatsappEnabled = !empty($context['monitor']['notify_whatsapp']);
+        if ($globalWhatsappEnabled && $monitorWhatsappEnabled && !empty($settings['openwa_api_url']) && !empty($settings['openwa_chat_id'])) {
             $hasConfiguredChannel = true;
             $results['openwa'] = self::sendOpenWA($settings['openwa_api_url'], $settings['openwa_api_key'] ?? '', $settings['openwa_chat_id'], $subject, $message, $context);
             if (!$results['openwa']['success']) {

@@ -924,6 +924,12 @@ $trashCount = count($trash);
                                     value="<?= htmlspecialchars($settings['openwa_chat_id'] ?? '') ?>">
                             </div>
                         </div>
+                        <div style="margin-top: 0.75rem;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="settingNotifyWhatsapp" <?= !empty($settings['notify_whatsapp_on_change']) ? 'checked' : '' ?>>
+                                <strong>⚡ Send WhatsApp on Change</strong> (Global switch - individual targets must also have WhatsApp enabled)
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Gmail SMTP Settings -->
@@ -1260,6 +1266,10 @@ $trashCount = count($trash);
                             <input type="checkbox" id="monitorNotifyError" checked>
                             Notify on Error
                         </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="monitorNotifyWhatsapp">
+                            💬 Send WhatsApp on Change
+                        </label>
                     </div>
 
                     <!-- Live Test Preview Output Box -->
@@ -1463,6 +1473,10 @@ $trashCount = count($trash);
                             <input type="checkbox" id="bulkNotifyError" checked>
                             Notify on Error
                         </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="bulkNotifyWhatsapp">
+                            💬 Send WhatsApp on Change
+                        </label>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1520,9 +1534,9 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyGroup"> Update Group / Category
+                            <input type="checkbox" id="bulkEditApplyGroup" checked> Update Group / Category
                         </label>
-                        <div id="bulkEditGroupFields" style="display: none; margin-top: 0.5rem;">
+                        <div id="bulkEditGroupFields" style="display: block; margin-top: 0.5rem;">
                             <input type="text" id="bulkEditGroupVal" class="form-control" list="existingGroupsList"
                                 placeholder="Enter group name or 'Ungrouped'">
                         </div>
@@ -1533,9 +1547,9 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplySelector"> Update Selectors & Ignore Paths
+                            <input type="checkbox" id="bulkEditApplySelector" checked> Update Selectors & Ignore Paths
                         </label>
-                        <div id="bulkEditSelectorFields" style="display: none; margin-top: 0.5rem;">
+                        <div id="bulkEditSelectorFields" style="display: block; margin-top: 0.5rem;">
                             <div class="form-group" style="margin-bottom: 0.5rem;">
                                 <label class="form-label" for="bulkEditSelectorVal">Selector / Path / Pattern</label>
                                 <input type="text" id="bulkEditSelectorVal" class="form-control"
@@ -1554,9 +1568,9 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyInterval"> Update Check Interval
+                            <input type="checkbox" id="bulkEditApplyInterval" checked> Update Check Interval
                         </label>
-                        <div id="bulkEditIntervalFields" style="display: none; margin-top: 0.5rem;">
+                        <div id="bulkEditIntervalFields" style="display: block; margin-top: 0.5rem;">
                             <input type="number" id="bulkEditIntervalVal" class="form-control" min="1" value="15"
                                 placeholder="Interval in minutes">
                         </div>
@@ -1567,9 +1581,9 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyTemplate"> Update Request Browser Profile
+                            <input type="checkbox" id="bulkEditApplyTemplate" checked> Update Request Browser Profile
                         </label>
-                        <div id="bulkEditTemplateFields" style="display: none; margin-top: 0.5rem;">
+                        <div id="bulkEditTemplateFields" style="display: block; margin-top: 0.5rem;">
                             <select id="bulkEditTemplateVal" class="form-control">
                                 <?php foreach ($builtinTemplates as $key => $tmpl): ?>
                                     <option value="<?= htmlspecialchars($key) ?>"><?= htmlspecialchars($tmpl['name']) ?>
@@ -1584,9 +1598,9 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyType"> Update Extraction Mode
+                            <input type="checkbox" id="bulkEditApplyType" checked> Update Extraction Mode
                         </label>
-                        <div id="bulkEditTypeFields" style="display: none; margin-top: 0.5rem;">
+                        <div id="bulkEditTypeFields" style="display: block; margin-top: 0.5rem;">
                             <select id="bulkEditTypeVal" class="form-control">
                                 <option value="html_full">Full Page HTML / Text</option>
                                 <option value="xpath">XPath Expression (DOM Node)</option>
@@ -1603,9 +1617,9 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyTimeout"> Update Request Timeout
+                            <input type="checkbox" id="bulkEditApplyTimeout" checked> Update Request Timeout
                         </label>
-                        <div id="bulkEditTimeoutFields" style="display: none; margin-top: 0.5rem;">
+                        <div id="bulkEditTimeoutFields" style="display: block; margin-top: 0.5rem;">
                             <input type="number" id="bulkEditTimeoutVal" class="form-control" min="5" max="60"
                                 value="25" placeholder="Timeout in seconds">
                         </div>
@@ -1616,9 +1630,9 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyPeak"> Update Peak/Off-Peak Request Frequency
+                            <input type="checkbox" id="bulkEditApplyPeak" checked> Update Peak/Off-Peak Request Frequency
                         </label>
-                        <div id="bulkEditPeakFields" style="display: none; margin-top: 0.5rem;">
+                        <div id="bulkEditPeakFields" style="display: block; margin-top: 0.5rem;">
                             <label class="checkbox-label" style="margin-bottom: 0.75rem;">
                                 <input type="checkbox" id="bulkEditPeakEnabledVal" checked>
                                 <strong>⚡ Enable Dynamic Peak/Off-Peak Schedule</strong>
@@ -1670,10 +1684,10 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyNotifications"> Update Notification & Strip Tags
+                            <input type="checkbox" id="bulkEditApplyNotifications" checked> Update Notification & Strip Tags
                             Settings
                         </label>
-                        <div id="bulkEditNotificationsFields" style="display: none; margin-top: 0.5rem;">
+                        <div id="bulkEditNotificationsFields" style="display: block; margin-top: 0.5rem;">
                             <div class="form-grid">
                                 <label class="checkbox-label">
                                     <input type="checkbox" id="bulkEditStripTagsVal" checked> Strip HTML tags
@@ -1683,6 +1697,9 @@ $trashCount = count($trash);
                                 </label>
                                 <label class="checkbox-label">
                                     <input type="checkbox" id="bulkEditNotifyErrorVal" checked> Notify on Error
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="bulkEditNotifyWhatsappVal"> 💬 Send WhatsApp on Change
                                 </label>
                             </div>
                         </div>

@@ -336,6 +336,27 @@ $latestContent = Storage::getLatestSnapshot($testSnapMonId);
 assert($latestContent === "Sample Baseline Content", "Latest snapshot content corrupted");
 echo "✅ Snapshot Deduplication on No-Change Checks Passed\n";
 
+// Test WhatsApp (OpenWA) Notification Configuration & Monitor Storage
+$testWaMonId = 'mon_wa_' . uniqid();
+Storage::saveMonitor([
+    'id' => $testWaMonId,
+    'name' => 'WhatsApp Test Monitor',
+    'url' => 'https://example.com/wa',
+    'notify_whatsapp' => false,
+]);
+$savedWaMon = Storage::getMonitor($testWaMonId);
+assert(isset($savedWaMon['notify_whatsapp']) && $savedWaMon['notify_whatsapp'] === false, "notify_whatsapp should default to false");
+
+// Test bulk edit of notify_whatsapp
+Storage::bulkEditMonitors([$testWaMonId], ['notify_whatsapp' => true]);
+$updatedWaMon = Storage::getMonitor($testWaMonId);
+assert(!empty($updatedWaMon['notify_whatsapp']), "bulkEditMonitors failed to update notify_whatsapp to true");
+
+// Clean up WhatsApp test monitor
+Storage::deleteMonitor($testWaMonId);
+Storage::purgeDeletedMonitor($testWaMonId);
+echo "✅ WhatsApp Monitor Setting & Bulk Edit Test Passed\n";
+
 // Clean up snapshot test directory
 $snapTestDir = CM_HISTORY_DIR . '/' . $testSnapMonId;
 if (is_dir($snapTestDir)) {

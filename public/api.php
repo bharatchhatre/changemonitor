@@ -129,6 +129,7 @@ try {
                 'simulate_delay' => !empty($input['simulate_delay']),
                 'notify_on_change' => !empty($input['notify_on_change']),
                 'notify_on_error' => !empty($input['notify_on_error']),
+                'notify_whatsapp' => !empty($input['notify_whatsapp']),
                 'status' => $input['status'] ?? 'active',
             ];
 
@@ -161,6 +162,7 @@ try {
                 'simulate_delay' => !empty($input['default_simulate_delay']),
                 'notify_on_change' => isset($input['default_notify_on_change']) ? !empty($input['default_notify_on_change']) : true,
                 'notify_on_error' => isset($input['default_notify_on_error']) ? !empty($input['default_notify_on_error']) : true,
+                'notify_whatsapp' => !empty($input['default_notify_whatsapp']),
                 'status' => $input['default_status'] ?? 'active',
             ];
 
@@ -198,6 +200,7 @@ try {
                     'simulate_delay' => isset($item['simulate_delay']) ? !empty($item['simulate_delay']) : $defaults['simulate_delay'],
                     'notify_on_change' => isset($item['notify_on_change']) ? !empty($item['notify_on_change']) : $defaults['notify_on_change'],
                     'notify_on_error' => isset($item['notify_on_error']) ? !empty($item['notify_on_error']) : $defaults['notify_on_error'],
+                    'notify_whatsapp' => isset($item['notify_whatsapp']) ? !empty($item['notify_whatsapp']) : $defaults['notify_whatsapp'],
                     'status' => $item['status'] ?? $defaults['status'],
                 ];
             }
@@ -592,6 +595,7 @@ try {
                 'openwa_api_url' => trim($input['openwa_api_url'] ?? ''),
                 'openwa_api_key' => trim($input['openwa_api_key'] ?? ''),
                 'openwa_chat_id' => trim($input['openwa_chat_id'] ?? ''),
+                'notify_whatsapp_on_change' => !empty($input['notify_whatsapp_on_change']),
                 'notify_on_change' => !empty($input['notify_on_change']),
                 'notify_on_error' => !empty($input['notify_on_error']),
                 'default_interval_mins' => (int)($input['default_interval_mins'] ?? 15),

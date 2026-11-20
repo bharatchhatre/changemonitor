@@ -851,6 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setChecked('monitorStripTags', data.strip_tags);
         setChecked('monitorNotifyChange', data.notify_on_change !== false);
         setChecked('monitorNotifyError', data.notify_on_error !== false);
+        setChecked('monitorNotifyWhatsapp', !!data.notify_whatsapp);
 
         const peakEnabled = !!data.peak_schedule_enabled;
         const peakCheckbox = document.getElementById('monitorPeakScheduleEnabled');
@@ -918,6 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 strip_tags: document.getElementById('monitorStripTags')?.checked || false,
                 notify_on_change: document.getElementById('monitorNotifyChange')?.checked !== false,
                 notify_on_error: document.getElementById('monitorNotifyError')?.checked !== false,
+                notify_whatsapp: document.getElementById('monitorNotifyWhatsapp')?.checked || false,
                 csrf_token: csrfToken,
             };
 
@@ -1998,6 +2000,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 openwa_api_url: document.getElementById('settingOpenwaUrl').value,
                 openwa_api_key: document.getElementById('settingOpenwaKey').value,
                 openwa_chat_id: document.getElementById('settingOpenwaChatId').value,
+                notify_whatsapp_on_change: document.getElementById('settingNotifyWhatsapp')?.checked || false,
                 notify_on_change: document.getElementById('settingNotifyChange').checked,
                 notify_on_error: document.getElementById('settingNotifyError').checked,
                 default_interval_mins: parseInt(document.getElementById('settingDefaultInterval').value, 10),
@@ -2927,8 +2930,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bulkEditTargetCount) bulkEditTargetCount.textContent = ids.length;
             if (bulkEditForm) bulkEditForm.reset();
             bulkEditCheckboxes.forEach(item => {
+                const cb = document.getElementById(item.check);
+                if (cb) cb.checked = true;
                 const container = document.getElementById(item.field);
-                if (container) container.style.display = 'none';
+                if (container) container.style.display = 'block';
             });
             openModal('bulkEditModal');
         });
@@ -2977,6 +2982,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fields.strip_tags = document.getElementById('bulkEditStripTagsVal')?.checked;
                 fields.notify_on_change = document.getElementById('bulkEditNotifyChangeVal')?.checked;
                 fields.notify_on_error = document.getElementById('bulkEditNotifyErrorVal')?.checked;
+                fields.notify_whatsapp = document.getElementById('bulkEditNotifyWhatsappVal')?.checked || false;
             }
 
             if (Object.keys(fields).length === 0) {
@@ -3233,6 +3239,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 run_baseline: document.getElementById('bulkRunBaseline').checked,
                 default_notify_on_change: document.getElementById('bulkNotifyChange').checked,
                 default_notify_on_error: document.getElementById('bulkNotifyError').checked,
+                default_notify_whatsapp: document.getElementById('bulkNotifyWhatsapp')?.checked || false,
                 csrf_token: csrfToken
             };
 
