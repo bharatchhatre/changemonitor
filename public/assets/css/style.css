@@ -539,6 +539,20 @@ button, input, select, textarea {
 .badge-changed { background: var(--warning-bg); color: var(--warning); }
 .badge-type { background: var(--accent-light); color: var(--info); }
 
+.pulse-indicator {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--warning);
+    animation: pulseGlow 1.4s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { opacity: 0.3; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1.2); }
+}
+
 /* Forms & Inputs */
 .form-group {
     margin-bottom: 1.25rem;

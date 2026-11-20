@@ -300,10 +300,14 @@ try {
             if (empty($ids) || !is_array($ids)) {
                 throw new \InvalidArgumentException('Monitor IDs array is required');
             }
+            Storage::updateRuntimeQueue($ids);
             $results = [];
             foreach ($ids as $id) {
+                Storage::updateRuntimeQueue(array_values(array_diff($ids, array_keys($results))));
                 $results[$id] = Engine::run((string)$id, true);
+                usleep(150000);
             }
+            Storage::updateRuntimeQueue([]);
             echo json_encode([
                 'success' => true,
                 'count' => count($results),
@@ -730,6 +734,49 @@ try {
             $stats = Storage::getStats();
             $stats['active_changes'] = Storage::countActiveChanges();
             echo json_encode(['success' => true, 'stats' => $stats]);
+            break;
+
+        // --- Get Queue & Runtime Status ---
+        case 'get_queue_status':
+            $runtime = Storage::getRuntimeStatus();
+            $monitors = Storage::getMonitors();
+            $dueQueue = [];
+            $now = time();
+
+            // Calculate which active monitors are currently due/overdue
+            foreach ($monitors as $id => $m) {
+                if (($m['status'] ?? 'active') !== 'active') {
+                    continue;
+                }
+                $intervalMins = Engine::getActiveIntervalMins($m);
+                $lastCheckTs = !empty($m['last_check_at']) ? strtotime($m['last_check_at']) : 0;
+                $nextCheckTs = $lastCheckTs > 0 ? ($lastCheckTs + ($intervalMins * 60)) : $now;
+                if ($nextCheckTs <= $now) {
+                    $dueQueue[$id] = [
+                        'id' => $id,
+                        'name' => $m['name'] ?? $id,
+                        'overdue_secs' => $now - $nextCheckTs,
+                    ];
+                }
+            }
+
+            // Sort overdue monitors with longest waiting first
+            uasort($dueQueue, fn($a, $b) => $b['overdue_secs'] <=> $a['overdue_secs']);
+            $dueIds = array_keys($dueQueue);
+
+            // Merge active execution queue
+            $activeQueue = $runtime['queue'] ?? [];
+            $allQueued = array_values(array_unique(array_merge($activeQueue, $dueIds)));
+
+            echo json_encode([
+                'success' => true,
+                'running_id' => $runtime['running_id'] ?? null,
+                'running_name' => (!empty($runtime['running_id']) && isset($monitors[$runtime['running_id']])) ? $monitors[$runtime['running_id']]['name'] : null,
+                'started_at' => $runtime['started_at'] ?? null,
+                'queue' => $allQueued,
+                'queue_count' => count($allQueued),
+                'queue_positions' => array_flip($allQueued),
+            ]);
             break;
 
         // --- Clear Application Logs ---

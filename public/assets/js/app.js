@@ -452,16 +452,47 @@ document.addEventListener('DOMContentLoaded', () => {
         filterRowsByGroup(currentActiveGroup);
     }
 
-    // --- Live Next Check Countdown Timer Ticker ---
+    // --- Live Next Check Countdown Timer Ticker & Queue Status ---
+    let currentRuntimeStatus = { running_id: null, queue_positions: {}, queue_count: 0 };
+
+    async function pollQueueStatus() {
+        try {
+            const res = await fetch('api.php?action=get_queue_status');
+            const data = await res.json();
+            if (data.success) {
+                currentRuntimeStatus = data;
+                updateNextCheckTimers();
+            }
+        } catch (e) { }
+    }
+
+    // Poll queue status every 4 seconds
+    pollQueueStatus();
+    setInterval(pollQueueStatus, 4000);
+
     function updateNextCheckTimers() {
         const now = Math.floor(Date.now() / 1000);
         document.querySelectorAll('.next-check-timer').forEach(el => {
+            const monId = el.getAttribute('data-id');
             const nextTs = parseInt(el.getAttribute('data-next-timestamp'), 10);
             if (!nextTs || isNaN(nextTs)) return;
 
+            // 1. Check if this monitor is actively executing right now
+            if (currentRuntimeStatus.running_id && currentRuntimeStatus.running_id === monId) {
+                el.innerHTML = '<span style="color: var(--warning); display: inline-flex; align-items: center; gap: 0.25rem;"><span class="pulse-indicator"></span> 🔄 Checking...</span>';
+                return;
+            }
+
             const diff = nextTs - now;
+
+            // 2. Check if monitor is in execution queue or overdue
             if (diff <= 0) {
-                el.innerHTML = '<span style="color: var(--success);">⚡ Due Now</span>';
+                let queuePosText = '';
+                if (currentRuntimeStatus.queue_positions && monId in currentRuntimeStatus.queue_positions) {
+                    const pos = currentRuntimeStatus.queue_positions[monId] + 1;
+                    queuePosText = ` <span style="font-size: 0.725rem; font-weight: normal; color: var(--text-secondary);">(Queue #${pos})</span>`;
+                }
+                el.innerHTML = `<span style="color: var(--success);">⚡ Due Now</span>${queuePosText}`;
             } else {
                 const hours = Math.floor(diff / 3600);
                 const mins = Math.floor((diff % 3600) / 60);

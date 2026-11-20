@@ -366,6 +366,16 @@ assert($updatedSettings['whatsapp_provider'] === 'gowa', "Failed to persist what
 assert($updatedSettings['whatsapp_device_id'] === 'device_123', "Failed to persist whatsapp_device_id");
 echo "✅ goWA / OpenWA Settings Persistence Test Passed\n";
 
+// Test Runtime Status & Queue Tracking
+Storage::setRunningMonitor('mon_test_running', ['mon_test_queued_1', 'mon_test_queued_2']);
+$status = Storage::getRuntimeStatus();
+assert($status['running_id'] === 'mon_test_running', "Failed to record running monitor");
+assert(in_array('mon_test_queued_1', $status['queue']), "Failed to record queue in runtime status");
+Storage::clearRunningMonitor('mon_test_running');
+$clearedStatus = Storage::getRuntimeStatus();
+assert($clearedStatus['running_id'] === null, "Failed to clear running monitor");
+echo "✅ Runtime Status & Queue Tracking Test Passed\n";
+
 // Clean up snapshot test directory
 $snapTestDir = CM_HISTORY_DIR . '/' . $testSnapMonId;
 if (is_dir($snapTestDir)) {

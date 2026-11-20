@@ -119,6 +119,7 @@ $settings = Storage::getSettings();
 $stats = Storage::getStats();
 $builtinTemplates = Fetcher::getAllTemplates();
 $csrfToken = Auth::getCsrfToken();
+$runtimeStatus = Storage::getRuntimeStatus();
 
 // Compute active & health counts and groups
 $activeMonitors = [];
@@ -426,10 +427,18 @@ $trashCount = count($trash);
                                                 <?php endif; ?>
                                             </td>
                                             <td>
-                                                <div class="next-check-timer" data-next-timestamp="<?= $nextCheckTs ?>"
+                                                <div class="next-check-timer" data-id="<?= $id ?>" data-next-timestamp="<?= $nextCheckTs ?>"
                                                     data-status="active"
                                                     style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--info); font-weight: 600;">
-                                                    <?= $isOverdue ? '⚡ Due Now' : '⏳ in ' . round(($nextCheckTs - time()) / 60) . 'm' ?>
+                                                    <?php if (($runtimeStatus['running_id'] ?? null) === $id): ?>
+                                                        <span style="color: var(--warning); display: inline-flex; align-items: center; gap: 0.25rem;">
+                                                            <span class="pulse-indicator"></span> 🔄 Checking...
+                                                        </span>
+                                                    <?php elseif ($isOverdue): ?>
+                                                        <span style="color: var(--success);">⚡ Due Now</span>
+                                                    <?php else: ?>
+                                                        ⏳ in <?= round(($nextCheckTs - time()) / 60) ?>m
+                                                    <?php endif; ?>
                                                 </div>
                                                 <div style="font-size: 0.725rem; color: var(--text-muted);">
                                                     Every

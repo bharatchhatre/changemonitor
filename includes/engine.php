@@ -64,7 +64,11 @@ class Engine {
             }
         }
 
-        $url = $monitor['url'];
+        // Mark this monitor as actively running
+        Storage::setRunningMonitor($monitorId);
+
+        try {
+            $url = $monitor['url'];
         $type = $monitor['type'] ?? 'html_full';
         $selector = $monitor['selector'] ?? '';
         $template = $monitor['browser_template'] ?? 'chrome_mac';
@@ -227,6 +231,8 @@ class Engine {
             Storage::logHistory($monitorId, 'NO_CHANGE', "Check passed. Content identical (hash: " . substr($newHash, 0, 10) . ")");
         }
 
+        Storage::clearRunningMonitor($monitorId);
+
         return [
             'success' => true,
             'changed' => $hasChanged,
@@ -237,7 +243,10 @@ class Engine {
             'snapshot_length' => strlen($newSnapshot),
             'extracted_preview' => substr($newSnapshot, 0, 500),
         ];
+    } finally {
+        Storage::clearRunningMonitor($monitorId);
     }
+}
 
     /**
      * Run all active monitors sequentially
@@ -246,14 +255,33 @@ class Engine {
         $monitors = Storage::getMonitors();
         $results = [];
 
+        // Build list of active monitors due for check
+        $queueIds = [];
         foreach ($monitors as $id => $mon) {
             if (($mon['status'] ?? 'active') !== 'active') {
                 continue;
             }
+            if (!$forceCheck) {
+                $effectiveInterval = self::getActiveIntervalMins($mon);
+                $lastCheck = !empty($mon['last_check_at']) ? strtotime($mon['last_check_at']) : 0;
+                if (time() - $lastCheck < ($effectiveInterval * 60)) {
+                    continue;
+                }
+            }
+            $queueIds[] = (string)$id;
+        }
+
+        Storage::updateRuntimeQueue($queueIds);
+
+        foreach ($queueIds as $id) {
+            // Update remaining queue
+            Storage::updateRuntimeQueue(array_values(array_diff($queueIds, array_keys($results))));
             $results[$id] = self::run($id, $forceCheck);
             // Small pause between targets to prevent shared host spikes
             usleep(200000);
         }
+
+        Storage::updateRuntimeQueue([]);
 
         return $results;
     }

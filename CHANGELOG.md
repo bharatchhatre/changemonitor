@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-20]
 ### Added
+- **Live Active Execution & Queue Position Tracking**:
+  - Added real-time tracking for active running checks (`🔄 Checking...`) and pending queue positions (`Queue #1`, `Queue #2`, etc.) on the dashboard.
+  - Implemented `/api.php?action=get_queue_status` and runtime state management in [`Storage`](file:///Users/bharat/Projects/changemonitor/includes/storage.php) and [`Engine`](file:///Users/bharat/Projects/changemonitor/includes/engine.php).
+  - Next Check timers update every second with live countdowns and dynamically switch between `Checking...`, `Due Now (Queue #X)`, and countdown intervals.
 - **Bulk Edit Value Pre-population**:
   - Automatically loads and displays current monitor settings when opening the Bulk Edit modal instead of blank fields.
   - When all selected targets share the same value for a setting, that value is pre-populated in the inputs/checkboxes.
@@ -21,7 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Updated notification dispatcher in [`Notifier`](file:///Users/bharat/Projects/changemonitor/includes/notifier.php) to require both global and individual monitor authorization before sending WhatsApp alerts.
 - **Bulk Edit UI Enhancement**:
   - All field sections and dropdown containers in the Bulk Edit modal are now expanded and open by default with their checkboxes pre-selected for quick batch configuration.
-- **Bumped Minor Version to 1.7.0**:
+- **Bumped Minor Version to 1.8.0**:
   - Synchronized `CM_VERSION` constant and cache-busting assets.
 - **Automated Government Portal Authentication & Anti-CSRF Manager**:
   - Added [`PortalAuth`](file:///Users/bharat/Projects/changemonitor/includes/portal_auth.php) helper supporting MHADA and CIDCO portals.

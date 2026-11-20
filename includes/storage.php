@@ -14,6 +14,54 @@ class Storage {
     private static string $settingsFile = CM_DATA_DIR . '/settings.json';
     private static string $statsFile = CM_DATA_DIR . '/stats.json';
     private static string $authFile = CM_DATA_DIR . '/auth.json';
+    private static string $runtimeStatusFile = CM_DATA_DIR . '/runtime_status.json';
+
+    // --- Runtime Execution & Queue Status ---
+
+    public static function getRuntimeStatus(): array {
+        $status = self::readJson(self::$runtimeStatusFile, [
+            'running_id' => null,
+            'started_at' => null,
+            'queue' => [],
+            'updated_at' => null,
+        ]);
+        // If a job is marked running but started more than 90 seconds ago, consider it timed out
+        if (!empty($status['running_id']) && !empty($status['started_at'])) {
+            if (time() - (int)$status['started_at'] > 90) {
+                $status['running_id'] = null;
+                $status['started_at'] = null;
+            }
+        }
+        return $status;
+    }
+
+    public static function setRunningMonitor(?string $monitorId, array $queue = []): void {
+        $status = [
+            'running_id' => $monitorId,
+            'started_at' => $monitorId ? time() : null,
+            'queue' => array_values(array_unique(array_filter($queue))),
+            'updated_at' => time(),
+        ];
+        self::writeJson(self::$runtimeStatusFile, $status);
+    }
+
+    public static function updateRuntimeQueue(array $queue): void {
+        $status = self::getRuntimeStatus();
+        $status['queue'] = array_values(array_unique(array_filter($queue)));
+        $status['updated_at'] = time();
+        self::writeJson(self::$runtimeStatusFile, $status);
+    }
+
+    public static function clearRunningMonitor(string $monitorId): void {
+        $status = self::getRuntimeStatus();
+        if (($status['running_id'] ?? null) === $monitorId) {
+            $status['running_id'] = null;
+            $status['started_at'] = null;
+        }
+        $status['queue'] = array_values(array_diff($status['queue'] ?? [], [$monitorId]));
+        $status['updated_at'] = time();
+        self::writeJson(self::$runtimeStatusFile, $status);
+    }
 
     /**
      * Read JSON file with shared file lock
