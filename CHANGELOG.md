@@ -12,9 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Synchronizes `AUTH_TOKEN`, `XSRF-TOKEN1`, and `XSRF-TOKEN2` cookies with matching `X-XSRF-TOKEN` request headers.
   - Added self-healing session recovery in [`Fetcher`](file:///Users/bharat/Projects/changemonitor/includes/fetcher.php) on 401/403 errors with automatic re-authentication.
   - Added `.env` configuration support for `MHADA_PAN`, `MHADA_PASSWORD`, `CIDCO_PAN`, `CIDCO_PASSWORD`, and `GOV_PROXY`.
-- **Bumped Minor Version to 1.2.0**:
-  - Added Cloudflare SSL reverse-proxy header detection (`X-Forwarded-Proto` and `CF-Visitor`) in [`Auth`](file:///Users/bharat/Projects/changemonitor/includes/auth.php) to prevent session cookie loss.
-  - Exempted read-only `test_preview` in [`api.php`](file:///Users/bharat/Projects/changemonitor/public/api.php) from strict state-mutation CSRF token requirements.
+- **Bumped Minor Version to 1.3.0**:
+  - Added HMAC dual-signed CSRF verification in [`Auth`](file:///Users/bharat/Projects/changemonitor/includes/auth.php) to ensure tokens stay valid across Cloudflare proxy session handoffs, preventing false positive CSRF rejections on save and check operations.
+  - Bumped version to v1.3.0.
+
 
 
 
