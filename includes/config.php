@@ -6,7 +6,7 @@
 
 declare(strict_types=1);
 
-define('CM_VERSION', '1.1.0');
+define('CM_VERSION', '1.2.0');
 define('CM_ROOT', dirname(__DIR__));
 
 // Load .env file if present

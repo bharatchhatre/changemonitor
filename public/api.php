@@ -22,8 +22,8 @@ Auth::requireAuth();
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
 
-// Verify CSRF for mutating POST actions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Verify CSRF for mutating POST actions (read-only previews can safely run if authenticated)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== 'test_preview') {
     $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? $input['csrf_token'] ?? null;
     if (!Auth::verifyCsrfToken($token)) {
         http_response_code(403);

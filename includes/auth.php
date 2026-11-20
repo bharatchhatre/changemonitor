@@ -13,7 +13,11 @@ class Auth {
     public static function startSession(): void {
         if (session_status() === PHP_SESSION_NONE) {
             // Set secure session cookie parameters
-            $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+            // Support Cloudflare and reverse proxies forwarding HTTPS
+            $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+                || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+                || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+                || (!empty($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"https"'));
             session_set_cookie_params([
                 'lifetime' => 86400 * 7, // 7 days
                 'path' => '/',
