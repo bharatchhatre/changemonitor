@@ -896,32 +896,47 @@ $trashCount = count($trash);
                         </div>
                     </div>
 
-                    <!-- OpenWA (WhatsApp) Settings -->
+                    <!-- WhatsApp Alerts (goWA / OpenWA) -->
                     <div style="margin-bottom: 2rem;">
                         <h3
                             style="font-size: 1rem; color: var(--success); margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
-                            <span>💬 OpenWA (WhatsApp Webhook) Alerts</span>
+                            <span>💬 WhatsApp Alerts (goWA / OpenWA)</span>
                             <button type="button" class="btn btn-secondary btn-sm test-notify-btn"
-                                data-channel="openwa">Test OpenWA</button>
+                                data-channel="whatsapp">Test WhatsApp</button>
                         </h3>
+                        <div class="form-grid" style="margin-bottom: 0.75rem;">
+                            <div class="form-group">
+                                <label class="form-label" for="settingWhatsappProvider">WhatsApp Server Provider</label>
+                                <select id="settingWhatsappProvider" class="form-control">
+                                    <option value="gowa" <?= (($settings['whatsapp_provider'] ?? 'gowa') === 'gowa') ? 'selected' : '' ?>>goWA (Golang Multi-Device REST API - /send/message)</option>
+                                    <option value="openwa" <?= (($settings['whatsapp_provider'] ?? '') === 'openwa') ? 'selected' : '' ?>>OpenWA (Node.js REST API - /sendText)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="settingWhatsappDeviceId">X-Device-Id / Device ID (goWA Optional)</label>
+                                <input type="text" id="settingWhatsappDeviceId" class="form-control"
+                                    placeholder="Leave empty for default device"
+                                    value="<?= htmlspecialchars($settings['whatsapp_device_id'] ?? '') ?>">
+                            </div>
+                        </div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label class="form-label" for="settingOpenwaUrl">OpenWA Server / Webhook URL</label>
-                                <input type="text" id="settingOpenwaUrl" class="form-control"
-                                    placeholder="http://your-server:8080/sendText"
-                                    value="<?= htmlspecialchars($settings['openwa_api_url'] ?? '') ?>">
+                                <label class="form-label" for="settingWhatsappUrl">Server REST / Webhook Base URL</label>
+                                <input type="text" id="settingWhatsappUrl" class="form-control"
+                                    placeholder="http://localhost:3000 (goWA) or http://your-server:8080 (OpenWA)"
+                                    value="<?= htmlspecialchars($settings['whatsapp_api_url'] ?? $settings['openwa_api_url'] ?? '') ?>">
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="settingOpenwaKey">API Key / Token (Optional)</label>
-                                <input type="text" id="settingOpenwaKey" class="form-control"
-                                    placeholder="Bearer or API key..."
-                                    value="<?= htmlspecialchars($settings['openwa_api_key'] ?? '') ?>">
+                                <label class="form-label" for="settingWhatsappKey">API Key / Token / Basic Auth (user:pass)</label>
+                                <input type="text" id="settingWhatsappKey" class="form-control"
+                                    placeholder="Optional Bearer token, API Key, or admin:pass"
+                                    value="<?= htmlspecialchars($settings['whatsapp_api_key'] ?? $settings['openwa_api_key'] ?? '') ?>">
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="settingOpenwaChatId">WhatsApp Number / Group ID</label>
-                                <input type="text" id="settingOpenwaChatId" class="form-control"
-                                    placeholder="1234567890 (no + sign or @c.us)"
-                                    value="<?= htmlspecialchars($settings['openwa_chat_id'] ?? '') ?>">
+                                <label class="form-label" for="settingWhatsappChatId">Target Phone Number / Group ID</label>
+                                <input type="text" id="settingWhatsappChatId" class="form-control"
+                                    placeholder="e.g. 919876543210 or 120363024512399999@g.us"
+                                    value="<?= htmlspecialchars($settings['whatsapp_chat_id'] ?? $settings['openwa_chat_id'] ?? '') ?>">
                             </div>
                         </div>
                         <div style="margin-top: 0.75rem;">

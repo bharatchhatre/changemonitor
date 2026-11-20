@@ -336,7 +336,7 @@ $latestContent = Storage::getLatestSnapshot($testSnapMonId);
 assert($latestContent === "Sample Baseline Content", "Latest snapshot content corrupted");
 echo "✅ Snapshot Deduplication on No-Change Checks Passed\n";
 
-// Test WhatsApp (OpenWA) Notification Configuration & Monitor Storage
+// Test WhatsApp (goWA / OpenWA) Notification Configuration & Monitor Storage
 $testWaMonId = 'mon_wa_' . uniqid();
 Storage::saveMonitor([
     'id' => $testWaMonId,
@@ -356,6 +356,15 @@ assert(!empty($updatedWaMon['notify_whatsapp']), "bulkEditMonitors failed to upd
 Storage::deleteMonitor($testWaMonId);
 Storage::purgeDeletedMonitor($testWaMonId);
 echo "✅ WhatsApp Monitor Setting & Bulk Edit Test Passed\n";
+
+// Test Settings WhatsApp Provider Support (goWA & OpenWA)
+$settings = Storage::getSettings();
+assert(isset($settings['whatsapp_provider']), "whatsapp_provider missing in settings defaults");
+Storage::saveSettings(['whatsapp_provider' => 'gowa', 'whatsapp_device_id' => 'device_123']);
+$updatedSettings = Storage::getSettings();
+assert($updatedSettings['whatsapp_provider'] === 'gowa', "Failed to persist whatsapp_provider as gowa");
+assert($updatedSettings['whatsapp_device_id'] === 'device_123', "Failed to persist whatsapp_device_id");
+echo "✅ goWA / OpenWA Settings Persistence Test Passed\n";
 
 // Clean up snapshot test directory
 $snapTestDir = CM_HISTORY_DIR . '/' . $testSnapMonId;

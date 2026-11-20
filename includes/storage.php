@@ -394,6 +394,11 @@ class Storage {
             'alert_email_to' => cm_env('ALERT_EMAIL_TO', ''),
             'telegram_bot_token' => cm_env('TELEGRAM_BOT_TOKEN', ''),
             'telegram_chat_id' => cm_env('TELEGRAM_CHAT_ID', ''),
+            'whatsapp_provider' => cm_env('WHATSAPP_PROVIDER', 'gowa'), // 'gowa' or 'openwa'
+            'whatsapp_api_url' => cm_env('WHATSAPP_API_URL', cm_env('OPENWA_API_URL', '')),
+            'whatsapp_api_key' => cm_env('WHATSAPP_API_KEY', cm_env('OPENWA_API_KEY', '')),
+            'whatsapp_chat_id' => cm_env('WHATSAPP_CHAT_ID', cm_env('OPENWA_CHAT_ID', '')),
+            'whatsapp_device_id' => cm_env('WHATSAPP_DEVICE_ID', ''),
             'openwa_api_url' => cm_env('OPENWA_API_URL', ''),
             'openwa_api_key' => cm_env('OPENWA_API_KEY', ''),
             'openwa_chat_id' => cm_env('OPENWA_CHAT_ID', ''),

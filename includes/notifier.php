@@ -135,17 +135,20 @@ class Notifier {
             }
         }
 
-        // 2. OpenWA (WhatsApp)
+        // 2. WhatsApp (goWA or OpenWA)
         // Requires both global setting notify_whatsapp_on_change AND monitor-level notify_whatsapp
         $globalWhatsappEnabled = !empty($settings['notify_whatsapp_on_change']);
         $monitorWhatsappEnabled = !empty($context['monitor']['notify_whatsapp']);
-        if ($globalWhatsappEnabled && $monitorWhatsappEnabled && !empty($settings['openwa_api_url']) && !empty($settings['openwa_chat_id'])) {
+        $waUrl = !empty($settings['whatsapp_api_url']) ? $settings['whatsapp_api_url'] : ($settings['openwa_api_url'] ?? '');
+        $waChatId = !empty($settings['whatsapp_chat_id']) ? $settings['whatsapp_chat_id'] : ($settings['openwa_chat_id'] ?? '');
+
+        if ($globalWhatsappEnabled && $monitorWhatsappEnabled && !empty($waUrl) && !empty($waChatId)) {
             $hasConfiguredChannel = true;
-            $results['openwa'] = self::sendOpenWA($settings['openwa_api_url'], $settings['openwa_api_key'] ?? '', $settings['openwa_chat_id'], $subject, $message, $context);
-            if (!$results['openwa']['success']) {
-                Storage::logAppEvent('ERROR', 'NOTIFIER', 'OpenWA alert failed: ' . ($results['openwa']['error'] ?? 'Unknown error'), ['subject' => $subject]);
+            $results['whatsapp'] = self::sendWhatsApp($settings, $subject, $message, $context);
+            if (!$results['whatsapp']['success']) {
+                Storage::logAppEvent('ERROR', 'NOTIFIER', 'WhatsApp alert failed: ' . ($results['whatsapp']['error'] ?? 'Unknown error'), ['subject' => $subject]);
             } else {
-                Storage::logAppEvent('INFO', 'NOTIFIER', 'OpenWA alert delivered', ['subject' => $subject]);
+                Storage::logAppEvent('INFO', 'NOTIFIER', 'WhatsApp alert delivered', ['subject' => $subject]);
             }
         }
 
@@ -289,6 +292,158 @@ class Notifier {
         return [
             'success' => $success,
             'error' => $success ? null : ($data['description'] ?? $err ?? "HTTP $code Error"),
+        ];
+    }
+
+    /**
+     * Dispatch WhatsApp message to selected provider (goWA or OpenWA)
+     */
+    public static function sendWhatsApp(array $settings, string $subject, string $message, array $context = []): array {
+        $provider = strtolower(trim((string)($settings['whatsapp_provider'] ?? 'gowa')));
+        $apiUrl = trim((string)($settings['whatsapp_api_url'] ?? $settings['openwa_api_url'] ?? ''));
+        $apiKey = trim((string)($settings['whatsapp_api_key'] ?? $settings['openwa_api_key'] ?? ''));
+        $chatId = trim((string)($settings['whatsapp_chat_id'] ?? $settings['openwa_chat_id'] ?? ''));
+        $deviceId = trim((string)($settings['whatsapp_device_id'] ?? ''));
+
+        if ($provider === 'openwa') {
+            return self::sendOpenWA($apiUrl, $apiKey, $chatId, $subject, $message, $context);
+        }
+
+        return self::sendGoWA($apiUrl, $apiKey, $chatId, $deviceId, $subject, $message, $context);
+    }
+
+    /**
+     * Send message via goWA (aldinokemal/go-whatsapp-web-multidevice REST API)
+     */
+    public static function sendGoWA(string $apiUrl, string $apiKey, string $chatId, string $deviceId, string $subject, string $message, array $context = []): array {
+        $endpoint = rtrim($apiUrl, '/') . '/send/message';
+        if (str_contains($apiUrl, '/send/message') || str_contains($apiUrl, '/send-message')) {
+            $endpoint = $apiUrl;
+        }
+
+        // Clean phone or group ID
+        $cleanPhone = trim($chatId);
+        // If it has @c.us strip it, if @g.us keep it
+        if (str_ends_with($cleanPhone, '@c.us')) {
+            $cleanPhone = substr($cleanPhone, 0, -5);
+        }
+
+        $diffData = $context['diff_data'] ?? null;
+        $isBigChange = !empty($diffData['is_big_change']);
+        $targetUrl = $context['url'] ?? '';
+        $comparisonUrl = self::getChangeComparisonUrl($context);
+
+        if (!empty($diffData)) {
+            $fullMsg = DiffFormatter::formatWhatsAppText($subject, $message, $diffData, $targetUrl);
+            if ($isBigChange) {
+                $fullMsg .= "\n\n📦 *Large Change Volume:* Separate snapshot files sent below.";
+            }
+        } else {
+            $fullMsg = "*[{$subject}]*\n\n" . $message;
+            if (!empty($context['diff'])) {
+                $fullMsg .= "\n\n*Diff Snippet:*\n" . substr($context['diff'], 0, 800);
+            }
+            if (!empty($targetUrl)) {
+                $fullMsg .= "\n\nURL: " . $targetUrl;
+            }
+        }
+
+        if (!empty($comparisonUrl)) {
+            $fullMsg .= "\n\n🔍 *View Comparison:* " . $comparisonUrl;
+        }
+
+        $payload = [
+            'phone' => $cleanPhone,
+            'message' => $fullMsg,
+        ];
+
+        $headers = ['Content-Type: application/json'];
+        if (!empty($deviceId)) {
+            $headers[] = 'X-Device-Id: ' . $deviceId;
+        }
+        if (!empty($apiKey)) {
+            if (str_contains($apiKey, ':')) {
+                $headers[] = 'Authorization: Basic ' . base64_encode($apiKey);
+            } else {
+                $headers[] = 'Authorization: Bearer ' . $apiKey;
+                $headers[] = 'api_key: ' . $apiKey;
+            }
+        }
+
+        $ch = curl_init($endpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        $resp = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        $success = ($code >= 200 && $code < 300);
+
+        // Dispatch files if available and supported
+        if ($success && !empty($context['attachments'])) {
+            foreach ($context['attachments'] as $att) {
+                self::sendGoWAFile($apiUrl, $apiKey, $cleanPhone, $deviceId, $att['filename'], $att['content'], $att['caption'] ?? '');
+            }
+        }
+
+        return [
+            'success' => $success,
+            'error' => $success ? null : ($err ?: "HTTP $code from goWA: " . substr((string)$resp, 0, 100)),
+        ];
+    }
+
+    /**
+     * Send file/document via goWA (/send/file)
+     */
+    public static function sendGoWAFile(string $apiUrl, string $apiKey, string $phone, string $deviceId, string $filename, string $fileContent, string $caption = ''): array {
+        $baseUrl = preg_replace('/(\/send\/message|\/send-message|\/send\/file)$/', '', rtrim($apiUrl, '/'));
+        $endpoint = $baseUrl . '/send/file';
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cm_wa_');
+        file_put_contents($tmpFile, $fileContent);
+
+        $postFields = [
+            'phone' => $phone,
+            'caption' => $caption,
+            'file' => new \CURLFile($tmpFile, 'text/html', $filename),
+        ];
+
+        $headers = [];
+        if (!empty($deviceId)) {
+            $headers[] = 'X-Device-Id: ' . $deviceId;
+        }
+        if (!empty($apiKey)) {
+            if (str_contains($apiKey, ':')) {
+                $headers[] = 'Authorization: Basic ' . base64_encode($apiKey);
+            } else {
+                $headers[] = 'Authorization: Bearer ' . $apiKey;
+                $headers[] = 'api_key: ' . $apiKey;
+            }
+        }
+
+        $ch = curl_init($endpoint);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+        if (!empty($headers)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        }
+        curl_setopt($ch, CURLOPT_TIMEOUT, 25);
+        $resp = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        @unlink($tmpFile);
+
+        $success = ($code >= 200 && $code < 300);
+        return [
+            'success' => $success,
+            'error' => $success ? null : ($err ?: "HTTP $code from goWA file dispatch"),
         ];
     }
 

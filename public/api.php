@@ -592,9 +592,14 @@ try {
                 'alert_email_to' => trim($input['alert_email_to'] ?? ''),
                 'telegram_bot_token' => trim($input['telegram_bot_token'] ?? ''),
                 'telegram_chat_id' => trim($input['telegram_chat_id'] ?? ''),
-                'openwa_api_url' => trim($input['openwa_api_url'] ?? ''),
-                'openwa_api_key' => trim($input['openwa_api_key'] ?? ''),
-                'openwa_chat_id' => trim($input['openwa_chat_id'] ?? ''),
+                'whatsapp_provider' => in_array($input['whatsapp_provider'] ?? '', ['gowa', 'openwa'], true) ? $input['whatsapp_provider'] : 'gowa',
+                'whatsapp_api_url' => trim($input['whatsapp_api_url'] ?? $input['openwa_api_url'] ?? ''),
+                'whatsapp_api_key' => trim($input['whatsapp_api_key'] ?? $input['openwa_api_key'] ?? ''),
+                'whatsapp_chat_id' => trim($input['whatsapp_chat_id'] ?? $input['openwa_chat_id'] ?? ''),
+                'whatsapp_device_id' => trim($input['whatsapp_device_id'] ?? ''),
+                'openwa_api_url' => trim($input['whatsapp_api_url'] ?? $input['openwa_api_url'] ?? ''),
+                'openwa_api_key' => trim($input['whatsapp_api_key'] ?? $input['openwa_api_key'] ?? ''),
+                'openwa_chat_id' => trim($input['whatsapp_chat_id'] ?? $input['openwa_chat_id'] ?? ''),
                 'notify_whatsapp_on_change' => !empty($input['notify_whatsapp_on_change']),
                 'notify_on_change' => !empty($input['notify_on_change']),
                 'notify_on_error' => !empty($input['notify_on_error']),
@@ -645,14 +650,20 @@ try {
                 }
             }
 
-            if ($channel === 'openwa' || $channel === 'all') {
-                $apiUrl = $input['openwa_api_url'] ?? $settings['openwa_api_url'];
-                $apiKey = $input['openwa_api_key'] ?? $settings['openwa_api_key'];
-                $chatId = $input['openwa_chat_id'] ?? $settings['openwa_chat_id'];
-                if (!empty($apiUrl) && !empty($chatId)) {
-                    $results['openwa'] = Notifier::sendOpenWA($apiUrl, $apiKey, $chatId, $testSubject, $testMsg, $testContext);
+            if ($channel === 'whatsapp' || $channel === 'openwa' || $channel === 'all') {
+                $testWaSettings = [
+                    'whatsapp_provider' => $input['whatsapp_provider'] ?? $settings['whatsapp_provider'] ?? 'gowa',
+                    'whatsapp_api_url' => $input['whatsapp_api_url'] ?? $input['openwa_api_url'] ?? $settings['whatsapp_api_url'] ?? $settings['openwa_api_url'],
+                    'whatsapp_api_key' => $input['whatsapp_api_key'] ?? $input['openwa_api_key'] ?? $settings['whatsapp_api_key'] ?? $settings['openwa_api_key'],
+                    'whatsapp_chat_id' => $input['whatsapp_chat_id'] ?? $input['openwa_chat_id'] ?? $settings['whatsapp_chat_id'] ?? $settings['openwa_chat_id'],
+                    'whatsapp_device_id' => $input['whatsapp_device_id'] ?? $settings['whatsapp_device_id'] ?? '',
+                ];
+                if (!empty($testWaSettings['whatsapp_api_url']) && !empty($testWaSettings['whatsapp_chat_id'])) {
+                    $results['whatsapp'] = Notifier::sendWhatsApp($testWaSettings, $testSubject, $testMsg, $testContext);
+                    $results['openwa'] = $results['whatsapp'];
                 } else {
-                    $results['openwa'] = ['success' => false, 'error' => 'OpenWA URL or chat ID is empty'];
+                    $results['whatsapp'] = ['success' => false, 'error' => 'WhatsApp API URL or recipient phone/chat ID is empty'];
+                    $results['openwa'] = $results['whatsapp'];
                 }
             }
 
