@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Synchronizes `AUTH_TOKEN`, `XSRF-TOKEN1`, and `XSRF-TOKEN2` cookies with matching `X-XSRF-TOKEN` request headers.
   - Added self-healing session recovery in [`Fetcher`](file:///Users/bharat/Projects/changemonitor/includes/fetcher.php) on 401/403 errors with automatic re-authentication.
   - Added `.env` configuration support for `MHADA_PAN`, `MHADA_PASSWORD`, `CIDCO_PAN`, `CIDCO_PASSWORD`, and `GOV_PROXY`.
+- **Bumped Minor Version to 1.1.0**:
+  - Updated application version to v1.1.0 across configurations and UI footers.
+  - Enhanced session expiration handling and auto-redirect for expired dashboard sessions.
+
 
 
 ## [2026-09-25]

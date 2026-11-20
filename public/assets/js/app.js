@@ -3,7 +3,17 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    // If an API request encounters a 401 Unauthorized or CSRF expiration, prompt to re-authenticate or redirect
+    function handleSessionExpiry(errorMsg) {
+        if (errorMsg && (errorMsg.includes('Invalid or expired CSRF') || errorMsg.includes('Session expired') || errorMsg.includes('Unauthorized'))) {
+            showToast('Session expired. Redirecting to login...', 'error');
+            setTimeout(() => {
+                window.location.href = 'index.php?route=login';
+            }, 1200);
+        }
+    }
 
     // ==========================================
     // --- THEME SWITCHER CONTROLLER ---
@@ -990,6 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     previewMeta.innerHTML = `<span class="badge badge-error">Failed (${data.http_code || 'Error'})</span> &bull; Speed: ${data.duration_ms || 0}ms`;
                     previewContent.textContent = 'Error: ' + (data.error || 'Unknown extraction error');
                     showToast(data.error || 'Extraction failed', 'error');
+                    handleSessionExpiry(data.error);
                 }
             } catch (err) {
                 previewContent.textContent = 'Request error: ' + err.message;

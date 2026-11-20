@@ -122,13 +122,9 @@ class Auth {
 
     public static function requireAuth(): void {
         if (!self::check()) {
-            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-                http_response_code(401);
-                header('Content-Type: application/json');
-                echo json_encode(['success' => false, 'error' => 'Unauthorized. Please log in.']);
-                exit;
-            }
-            header('Location: index.php?route=login');
+            http_response_code(401);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'error' => 'Session expired or unauthorized. Please log in again.']);
             exit;
         }
     }
