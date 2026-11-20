@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-11-20]
+### Added
+- **Automated Government Portal Authentication & Anti-CSRF Manager**:
+  - Added [`PortalAuth`](file:///Users/bharat/Projects/changemonitor/includes/portal_auth.php) helper supporting MHADA and CIDCO portals.
+  - Automatically converts plaintext password to hex representation, executes login handshake, and securely caches session cookies on disk.
+  - Synchronizes `AUTH_TOKEN`, `XSRF-TOKEN1`, and `XSRF-TOKEN2` cookies with matching `X-XSRF-TOKEN` request headers.
+  - Added self-healing session recovery in [`Fetcher`](file:///Users/bharat/Projects/changemonitor/includes/fetcher.php) on 401/403 errors with automatic re-authentication.
+  - Added `.env` configuration support for `MHADA_PAN`, `MHADA_PASSWORD`, `CIDCO_PAN`, `CIDCO_PASSWORD`, and `GOV_PROXY`.
+
+
 ## [2026-09-25]
 ### Added
 - **Ignore Part of Monitor (Noise & Dynamic Timestamp Filter)**:

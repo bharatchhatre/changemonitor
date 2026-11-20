@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/storage.php';
+require_once __DIR__ . '/portal_auth.php';
 
 class Fetcher {
     /**
@@ -206,6 +207,11 @@ class Fetcher {
         }
 
         // Format for cURL
+        $cookies = $options['cookies'] ?? '';
+
+        // Automated Government Portal Auth & CSRF handling (MHADA, CIDCO, etc.)
+        PortalAuth::prepareRequest($url, $mergedHeaders, $cookies);
+
         $headersList = [];
         foreach ($mergedHeaders as $k => $v) {
             $headersList[] = "$k: $v";
@@ -276,9 +282,9 @@ class Fetcher {
         curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarFile);
         curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarFile);
 
-        // Cookies explicitly supplied
-        if (!empty($options['cookies'])) {
-            curl_setopt($ch, CURLOPT_COOKIE, $options['cookies']);
+        // Cookies explicitly supplied or injected by PortalAuth
+        if (!empty($cookies)) {
+            curl_setopt($ch, CURLOPT_COOKIE, $cookies);
         }
 
         // Proxy
@@ -303,33 +309,57 @@ class Fetcher {
 
         // Intelligent Anti-Bot & Azure FrontDoor WAF Self-Healing Fallback
         // If target returns 403 Forbidden or 400 Bad Request, execute multi-tier self-healing
-        if ($httpCode === 403 || $httpCode === 400) {
+        if ($httpCode === 403 || $httpCode === 400 || $httpCode === 401) {
             if (file_exists($cookieJarFile)) {
                 @unlink($cookieJarFile);
             }
 
+            // If a portal session expired, force refresh the portal session and retry
+            $portalKey = PortalAuth::detectPortal($host);
+            if ($portalKey && ($httpCode === 401 || $httpCode === 403)) {
+                PortalAuth::clearSession($portalKey);
+                $retryHeaders = $mergedHeaders;
+                $retryCookies = $options['cookies'] ?? '';
+                if (PortalAuth::prepareRequest($url, $retryHeaders, $retryCookies)) {
+                    $retryHeaderList = [];
+                    foreach ($retryHeaders as $k => $v) {
+                        $retryHeaderList[] = "$k: $v";
+                    }
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, $retryHeaderList);
+                    if (!empty($retryCookies)) {
+                        curl_setopt($ch, CURLOPT_COOKIE, $retryCookies);
+                    }
+                    usleep(150000);
+                    $rawResponse = curl_exec($ch);
+                    $curlError = curl_error($ch);
+                    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                }
+            }
+
             // Retry Tier 1: Clean REST API / SPA mode with HTTP/1.1, host Referer, and Indian IP Forwarding
-            $apiFallbackHeaders = [
-                'Accept: application/json, text/plain, */*',
-                'Accept-Language: en-US,en;q=0.9,hi;q=0.8',
-                "Referer: $origin/",
-                'X-Forwarded-For: 103.21.124.1, 103.21.124.10',
-                'X-Real-IP: 103.21.124.1',
-                'Client-IP: 103.21.124.1',
-                'Connection: close',
-            ];
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $apiFallbackHeaders);
-            curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36');
-            curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarFile);
-            curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarFile);
-            usleep(150000); // 150ms backoff
-            $rawResponse = curl_exec($ch);
-            $curlError = curl_error($ch);
-            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($httpCode === 403 || $httpCode === 400 || $httpCode === 401) {
+                $apiFallbackHeaders = [
+                    'Accept: application/json, text/plain, */*',
+                    'Accept-Language: en-US,en;q=0.9,hi;q=0.8',
+                    "Referer: $origin/",
+                    'X-Forwarded-For: 103.21.124.1, 103.21.124.10',
+                    'X-Real-IP: 103.21.124.1',
+                    'Client-IP: 103.21.124.1',
+                    'Connection: close',
+                ];
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $apiFallbackHeaders);
+                curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36');
+                curl_setopt($ch, CURLOPT_COOKIEJAR, $cookieJarFile);
+                curl_setopt($ch, CURLOPT_COOKIEFILE, $cookieJarFile);
+                usleep(150000); // 150ms backoff
+                $rawResponse = curl_exec($ch);
+                $curlError = curl_error($ch);
+                $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            }
 
             // Retry Tier 2: Clean Browser Document Navigation mode if Tier 1 was not 200-399
-            if ($httpCode === 403 || $httpCode === 400) {
+            if ($httpCode === 403 || $httpCode === 400 || $httpCode === 401) {
                 $docFallbackHeaders = [
                     'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                     'Accept-Language: en-US,en;q=0.9',
