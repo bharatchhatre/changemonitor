@@ -896,53 +896,40 @@ $trashCount = count($trash);
                         </div>
                     </div>
 
-                    <!-- WhatsApp Alerts (goWA / OpenWA) -->
+                    <!-- OpenWA (WhatsApp) Settings -->
                     <div style="margin-bottom: 2rem;">
                         <h3
                             style="font-size: 1rem; color: var(--success); margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
-                            <span>💬 WhatsApp Alerts (goWA / OpenWA)</span>
+                            <span>💬 OpenWA (WhatsApp Webhook) Alerts</span>
                             <button type="button" class="btn btn-secondary btn-sm test-notify-btn"
-                                data-channel="whatsapp">Test WhatsApp</button>
+                                data-channel="openwa">Test OpenWA</button>
                         </h3>
-                        <div class="form-grid" style="margin-bottom: 0.75rem;">
-                            <div class="form-group">
-                                <label class="form-label" for="settingWhatsappProvider">WhatsApp Server Provider</label>
-                                <select id="settingWhatsappProvider" class="form-control">
-                                    <option value="gowa" <?= (($settings['whatsapp_provider'] ?? 'gowa') === 'gowa') ? 'selected' : '' ?>>goWA (Golang Multi-Device REST API - /send/message)</option>
-                                    <option value="openwa" <?= (($settings['whatsapp_provider'] ?? '') === 'openwa') ? 'selected' : '' ?>>OpenWA (Node.js REST API - /sendText)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="settingWhatsappDeviceId">X-Device-Id / Device ID (goWA Optional)</label>
-                                <input type="text" id="settingWhatsappDeviceId" class="form-control"
-                                    placeholder="Leave empty for default device"
-                                    value="<?= htmlspecialchars($settings['whatsapp_device_id'] ?? '') ?>">
-                            </div>
-                        </div>
                         <div class="form-grid">
                             <div class="form-group">
-                                <label class="form-label" for="settingWhatsappUrl">Server REST / Webhook Base URL</label>
-                                <input type="text" id="settingWhatsappUrl" class="form-control"
-                                    placeholder="http://localhost:3000 (goWA) or http://your-server:8080 (OpenWA)"
-                                    value="<?= htmlspecialchars($settings['whatsapp_api_url'] ?? $settings['openwa_api_url'] ?? '') ?>">
+                                <label class="form-label" for="settingOpenwaUrl">OpenWA Server / Webhook URL</label>
+                                <input type="text" id="settingOpenwaUrl" class="form-control"
+                                    placeholder="http://your-server:8080/sendText"
+                                    value="<?= htmlspecialchars($settings['openwa_api_url'] ?? '') ?>">
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="settingWhatsappKey">API Key / Token / Basic Auth (user:pass)</label>
-                                <input type="text" id="settingWhatsappKey" class="form-control"
-                                    placeholder="Optional Bearer token, API Key, or admin:pass"
-                                    value="<?= htmlspecialchars($settings['whatsapp_api_key'] ?? $settings['openwa_api_key'] ?? '') ?>">
+                                <label class="form-label" for="settingOpenwaKey">API Key / Token (Optional)</label>
+                                <input type="text" id="settingOpenwaKey" class="form-control"
+                                    placeholder="Bearer or API key..."
+                                    value="<?= htmlspecialchars($settings['openwa_api_key'] ?? '') ?>">
                             </div>
                             <div class="form-group">
-                                <label class="form-label" for="settingWhatsappChatId">Target Phone Number / Group ID</label>
-                                <input type="text" id="settingWhatsappChatId" class="form-control"
-                                    placeholder="e.g. 919876543210 or 120363024512399999@g.us"
-                                    value="<?= htmlspecialchars($settings['whatsapp_chat_id'] ?? $settings['openwa_chat_id'] ?? '') ?>">
+                                <label class="form-label" for="settingOpenwaChatId">WhatsApp Number / Group ID</label>
+                                <input type="text" id="settingOpenwaChatId" class="form-control"
+                                    placeholder="1234567890 (no + sign or @c.us)"
+                                    value="<?= htmlspecialchars($settings['openwa_chat_id'] ?? '') ?>">
                             </div>
                         </div>
                         <div style="margin-top: 0.75rem;">
                             <label class="checkbox-label">
-                                <input type="checkbox" id="settingNotifyWhatsapp" <?= !empty($settings['notify_whatsapp_on_change']) ? 'checked' : '' ?>>
-                                <strong>⚡ Send WhatsApp on Change</strong> (Global switch - individual targets must also have WhatsApp enabled)
+                                <input type="checkbox" id="settingNotifyWhatsapp"
+                                    <?= !empty($settings['notify_whatsapp_on_change']) ? 'checked' : '' ?>>
+                                <strong>⚡ Send WhatsApp on Change</strong> (Global switch - individual targets must also
+                                have WhatsApp enabled)
                             </label>
                         </div>
                     </div>
@@ -1112,17 +1099,26 @@ $trashCount = count($trash);
                 <input type="hidden" id="monitorId" value="">
                 <div class="modal-body">
                     <!-- Quick Paste cURL Importer -->
-                    <div class="curl-paste-wrapper" id="curlPasteWrapper" style="margin-bottom: 1.25rem; background: var(--bg-subtle); border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 0.85rem 1rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                            <label for="monitorCurlPaste" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem; margin: 0; cursor: pointer;">
+                    <div class="curl-paste-wrapper" id="curlPasteWrapper"
+                        style="margin-bottom: 1.25rem; background: var(--bg-subtle); border: 1px dashed var(--border-color); border-radius: var(--radius-sm); padding: 0.85rem 1rem;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <label for="monitorCurlPaste"
+                                style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem; margin: 0; cursor: pointer;">
                                 <span>📋</span> Paste cURL Command
                             </label>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">Auto-fills Target Name, URL, Headers & Cookies</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Auto-fills Target Name, URL,
+                                Headers & Cookies</span>
                         </div>
-                        <textarea id="monitorCurlPaste" class="form-control" style="font-family: var(--font-mono); font-size: 0.8rem; min-height: 64px; max-height: 120px; resize: vertical;" placeholder="curl 'https://api.example.com/data' -H 'Authorization: Bearer xyz' -H 'Cookie: session=123'"></textarea>
+                        <textarea id="monitorCurlPaste" class="form-control"
+                            style="font-family: var(--font-mono); font-size: 0.8rem; min-height: 64px; max-height: 120px; resize: vertical;"
+                            placeholder="curl 'https://api.example.com/data' -H 'Authorization: Bearer xyz' -H 'Cookie: session=123'"></textarea>
                         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.6rem;">
-                            <button type="button" class="btn btn-secondary btn-sm" id="clearCurlBtn" style="padding: 0.35rem 0.75rem; min-height: 34px; font-size: 0.8rem;">Clear</button>
-                            <button type="button" class="btn btn-primary btn-sm" id="applyCurlBtn" style="padding: 0.35rem 0.85rem; min-height: 34px; font-size: 0.8rem;">⚡ Parse & Autofill</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="clearCurlBtn"
+                                style="padding: 0.35rem 0.75rem; min-height: 34px; font-size: 0.8rem;">Clear</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="applyCurlBtn"
+                                style="padding: 0.35rem 0.85rem; min-height: 34px; font-size: 0.8rem;">⚡ Parse &
+                                Autofill</button>
                         </div>
                     </div>
 
@@ -1165,16 +1161,22 @@ $trashCount = count($trash);
 
                     <div class="form-grid">
                         <div class="form-group">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
-                                <label class="form-label" for="monitorSelector" style="margin: 0;">Selector / Path / Pattern</label>
-                                <button type="button" class="btn btn-secondary btn-sm" id="btnOpenQuickSelector" style="padding: 0.2rem 0.55rem; font-size: 0.75rem; min-height: 26px; display: inline-flex; align-items: center; gap: 0.3rem;" title="Interactively pick HTML elements or JSON keys from live page response">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                                <label class="form-label" for="monitorSelector" style="margin: 0;">Selector / Path /
+                                    Pattern</label>
+                                <button type="button" class="btn btn-secondary btn-sm" id="btnOpenQuickSelector"
+                                    style="padding: 0.2rem 0.55rem; font-size: 0.75rem; min-height: 26px; display: inline-flex; align-items: center; gap: 0.3rem;"
+                                    title="Interactively pick HTML elements or JSON keys from live page response">
                                     <span>🎯</span> Visual Quick Picker
                                 </button>
                             </div>
                             <input type="text" id="monitorSelector" class="form-control"
                                 placeholder="e.g. .price, #stock, or data.items[0].price (multiple allowed)">
-                            <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                Multi-selector supported: separate with commas or newlines (e.g. <code>.title, .price</code>)
+                            <div class="form-hint"
+                                style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                Multi-selector supported: separate with commas or newlines (e.g.
+                                <code>.title, .price</code>)
                             </div>
                         </div>
                         <div class="form-group">
@@ -1183,8 +1185,10 @@ $trashCount = count($trash);
                             </label>
                             <input type="text" id="monitorIgnoreSelector" class="form-control"
                                 placeholder="e.g. $.timestamp, .footer, or //div[@id='ads']">
-                            <div class="form-hint" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
-                                Stripped before comparing: JSON (e.g. <code>$.timestamp, data.meta.*</code>), HTML (e.g. <code>.banner, #ads</code>), or Regex
+                            <div class="form-hint"
+                                style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
+                                Stripped before comparing: JSON (e.g. <code>$.timestamp, data.meta.*</code>), HTML (e.g.
+                                <code>.banner, #ads</code>), or Regex
                             </div>
                         </div>
                     </div>
@@ -1290,9 +1294,11 @@ $trashCount = count($trash);
                     <!-- Live Test Preview Output Box -->
                     <div id="previewOutput"
                         style="display: none; margin-top: 1.5rem; background: var(--bg-code); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
                             <div id="previewMeta" style="font-size: 0.8rem;"></div>
-                            <button type="button" class="btn btn-secondary btn-sm" id="btnPreviewLaunchQuickPicker" style="padding: 0.2rem 0.6rem; font-size: 0.75rem; min-height: 26px;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnPreviewLaunchQuickPicker"
+                                style="padding: 0.2rem 0.6rem; font-size: 0.75rem; min-height: 26px;">
                                 🎯 Open Visual Quick Picker
                             </button>
                         </div>
@@ -1319,44 +1325,63 @@ $trashCount = count($trash);
                 <button type="button" class="modal-close" onclick="closeModal('quickSelectorModal')">&times;</button>
             </div>
             <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 1.25rem;">
-                <div style="background: var(--bg-subtle); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <div
+                    style="background: var(--bg-subtle); padding: 0.85rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                     <div style="font-size: 0.82rem; color: var(--text-secondary);">
-                        Click on any JSON key or HTML DOM element below to immediately <strong>+ Include in Selector</strong> or <strong>🚫 Add to Ignore List</strong>.
+                        Click on any JSON key or HTML DOM element below to immediately <strong>+ Include in
+                            Selector</strong> or <strong>🚫 Add to Ignore List</strong>.
                     </div>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <input type="text" id="qsFilterInput" class="form-control" placeholder="Search tree / elements..." style="width: 200px; padding: 0.3rem 0.6rem; font-size: 0.8rem; min-height: 32px;">
-                        <button type="button" class="btn btn-secondary btn-sm" id="qsRefreshFetchBtn" style="padding: 0.3rem 0.75rem; min-height: 32px; font-size: 0.8rem;">🔄 Fetch Target</button>
+                        <input type="text" id="qsFilterInput" class="form-control"
+                            placeholder="Search tree / elements..."
+                            style="width: 200px; padding: 0.3rem 0.6rem; font-size: 0.8rem; min-height: 32px;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="qsRefreshFetchBtn"
+                            style="padding: 0.3rem 0.75rem; min-height: 32px; font-size: 0.8rem;">🔄 Fetch
+                            Target</button>
                     </div>
                 </div>
 
                 <!-- Current Active Selectors Summary Bar -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
-                            <strong style="font-size: 0.8rem; color: var(--success);">🎯 Monitored Target Path(s):</strong>
-                            <button type="button" class="btn btn-secondary btn-sm" id="qsClearSelectorBtn" style="padding: 0.1rem 0.4rem; font-size: 0.7rem; min-height: 20px;">Clear</button>
+                    <div
+                        style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                            <strong style="font-size: 0.8rem; color: var(--success);">🎯 Monitored Target
+                                Path(s):</strong>
+                            <button type="button" class="btn btn-secondary btn-sm" id="qsClearSelectorBtn"
+                                style="padding: 0.1rem 0.4rem; font-size: 0.7rem; min-height: 20px;">Clear</button>
                         </div>
-                        <div id="qsCurrentSelectorTags" style="display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 24px; font-family: var(--font-mono); font-size: 0.78rem;">
-                            <span style="color: var(--text-muted); font-style: italic;">(Default: Whole document / body)</span>
+                        <div id="qsCurrentSelectorTags"
+                            style="display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 24px; font-family: var(--font-mono); font-size: 0.78rem;">
+                            <span style="color: var(--text-muted); font-style: italic;">(Default: Whole document /
+                                body)</span>
                         </div>
                     </div>
 
-                    <div style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                    <div
+                        style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: var(--radius-sm); padding: 0.6rem 0.85rem;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
                             <strong style="font-size: 0.8rem; color: var(--danger);">🚫 Ignored Path(s):</strong>
-                            <button type="button" class="btn btn-secondary btn-sm" id="qsClearIgnoreBtn" style="padding: 0.1rem 0.4rem; font-size: 0.7rem; min-height: 20px;">Clear</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="qsClearIgnoreBtn"
+                                style="padding: 0.1rem 0.4rem; font-size: 0.7rem; min-height: 20px;">Clear</button>
                         </div>
-                        <div id="qsCurrentIgnoreTags" style="display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 24px; font-family: var(--font-mono); font-size: 0.78rem;">
+                        <div id="qsCurrentIgnoreTags"
+                            style="display: flex; flex-wrap: wrap; gap: 0.35rem; min-height: 24px; font-family: var(--font-mono); font-size: 0.78rem;">
                             <span style="color: var(--text-muted); font-style: italic;">(None)</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Visual Interactive Tree Explorer Container -->
-                <div id="qsTreeContainer" style="background: var(--bg-code); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; min-height: 280px; max-height: 420px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.82rem;">
-                    <div id="qsTreePlaceholder" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+                <div id="qsTreeContainer"
+                    style="background: var(--bg-code); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; min-height: 280px; max-height: 420px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.82rem;">
+                    <div id="qsTreePlaceholder"
+                        style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
                         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
-                        <p>Click <strong>"Fetch Target"</strong> or <strong>"Test & Live Preview"</strong> to load and interactively explore the live response structure.</p>
+                        <p>Click <strong>"Fetch Target"</strong> or <strong>"Test & Live Preview"</strong> to load and
+                            interactively explore the live response structure.</p>
                     </div>
                     <div id="qsTreeContent" style="display: none;"></div>
                 </div>
@@ -1366,7 +1391,8 @@ $trashCount = count($trash);
                     Changes are automatically applied to your monitor configuration.
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
-                    <button type="button" class="btn btn-primary" onclick="closeModal('quickSelectorModal')">Done & Apply</button>
+                    <button type="button" class="btn btn-primary" onclick="closeModal('quickSelectorModal')">Done &
+                        Apply</button>
                 </div>
             </div>
         </div>
@@ -1433,7 +1459,8 @@ $trashCount = count($trash);
                                 placeholder="e.g. .price or data.items[0]">
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="bulkDefaultIgnoreSelector">Ignore Selector / Path (Optional)</label>
+                            <label class="form-label" for="bulkDefaultIgnoreSelector">Ignore Selector / Path
+                                (Optional)</label>
                             <input type="text" id="bulkDefaultIgnoreSelector" class="form-control"
                                 placeholder="e.g. $.timestamp or .ad-banner">
                         </div>
@@ -1571,7 +1598,8 @@ $trashCount = count($trash);
                                     placeholder="e.g. .price, #stock or data.items[0].price">
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
-                                <label class="form-label" for="bulkEditIgnoreSelectorVal">🚫 Ignore Selector / Path</label>
+                                <label class="form-label" for="bulkEditIgnoreSelectorVal">🚫 Ignore Selector /
+                                    Path</label>
                                 <input type="text" id="bulkEditIgnoreSelectorVal" class="form-control"
                                     placeholder="e.g. $.timestamp or .ad-banner">
                             </div>
@@ -1645,7 +1673,8 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyPeak" checked> Update Peak/Off-Peak Request Frequency
+                            <input type="checkbox" id="bulkEditApplyPeak" checked> Update Peak/Off-Peak Request
+                            Frequency
                         </label>
                         <div id="bulkEditPeakFields" style="display: block; margin-top: 0.5rem;">
                             <label class="checkbox-label" style="margin-bottom: 0.75rem;">
@@ -1699,7 +1728,8 @@ $trashCount = count($trash);
                         style="background: var(--bg-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin-bottom: 0.75rem;">
                         <label class="checkbox-label"
                             style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; min-height: auto;">
-                            <input type="checkbox" id="bulkEditApplyNotifications" checked> Update Notification & Strip Tags
+                            <input type="checkbox" id="bulkEditApplyNotifications" checked> Update Notification & Strip
+                            Tags
                             Settings
                         </label>
                         <div id="bulkEditNotificationsFields" style="display: block; margin-top: 0.5rem;">
@@ -1783,21 +1813,29 @@ $trashCount = count($trash);
                     </div>
 
                     <!-- Raw Snapshot Selector (Raw Mode) -->
-                    <div id="historyRawControls" style="display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <div id="historyRawControls"
+                        style="display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                         <label for="snapshotSelect"
                             style="font-size: 0.8rem; color: var(--text-muted);">Version:</label>
                         <select id="snapshotSelect" class="form-control"
                             style="min-height: 32px; padding: 0.2rem 0.5rem; font-size: 0.8rem; width: auto;">
                             <option value="">Latest Captured Snapshot</option>
                         </select>
-                        <div class="raw-tools-btn-group" style="display: inline-flex; gap: 0.35rem; align-items: center; margin-left: 0.25rem;">
-                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawBeautify" title="Format and beautify JSON, CSS, JS, XML or HTML code" style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
+                        <div class="raw-tools-btn-group"
+                            style="display: inline-flex; gap: 0.35rem; align-items: center; margin-left: 0.25rem;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawBeautify"
+                                title="Format and beautify JSON, CSS, JS, XML or HTML code"
+                                style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
                                 ✨ Beautify Code
                             </button>
-                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawPreviewHtml" title="Toggle rendered visual HTML preview" style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawPreviewHtml"
+                                title="Toggle rendered visual HTML preview"
+                                style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
                                 👁️ Preview HTML
                             </button>
-                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawCopy" title="Copy raw snapshot to clipboard" style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnRawCopy"
+                                title="Copy raw snapshot to clipboard"
+                                style="padding: 0.25rem 0.6rem; font-size: 0.775rem;">
                                 📋 Copy
                             </button>
                         </div>
@@ -1817,8 +1855,7 @@ $trashCount = count($trash);
                 <!-- Container 2b: HTML Preview (Sandboxed iframe) -->
                 <div id="historyHtmlPreviewContainer"
                     style="max-height: 460px; height: 460px; display: none; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: #ffffff;">
-                    <iframe id="historyHtmlPreviewFrame"
-                        sandbox="allow-same-origin allow-scripts"
+                    <iframe id="historyHtmlPreviewFrame" sandbox="allow-same-origin allow-scripts"
                         style="width: 100%; height: 100%; border: none; background: #ffffff;"
                         title="HTML Preview Frame"></iframe>
                 </div>
@@ -1971,6 +2008,9 @@ $trashCount = count($trash);
         </div>
     </div>
 
+    <script>
+        window.allMonitorsList = <?= json_encode($monitors, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES) ?> || {};
+    </script>
     <script src="assets/js/app.js?v=<?= CM_VERSION ?>"></script>
 </body>
 

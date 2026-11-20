@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentActiveGroup = 'all';
     try {
         currentActiveGroup = sessionStorage.getItem('active_group') || 'all';
-    } catch (e) {}
+    } catch (e) { }
 
     function getSelectedMonitorIds() {
         const activeSubtab = document.querySelector('.subtab-pane:not([style*="display: none"])') || document;
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentActiveGroup = groupName || 'all';
         try {
             sessionStorage.setItem('active_group', currentActiveGroup);
-        } catch (e) {}
+        } catch (e) { }
 
         document.querySelectorAll('.group-pill').forEach(pill => {
             if (pill.getAttribute('data-group') === currentActiveGroup) {
@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 sessionStorage.setItem('active_tab', targetId);
                 history.replaceState(null, '', '#' + targetId.replace('tab-', ''));
-            } catch (e) {}
+            } catch (e) { }
         }
     }
 
@@ -387,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 sessionStorage.setItem('active_subtab', targetId);
-            } catch (e) {}
+            } catch (e) { }
 
             // Uncheck any monitor checkboxes to avoid accidental cross-tab bulk action bleed
             document.querySelectorAll('.monitor-checkbox').forEach(cb => { cb.checked = false; });
@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!initialTab) {
         try {
             initialTab = sessionStorage.getItem('active_tab');
-        } catch (e) {}
+        } catch (e) { }
     }
     if (initialTab && document.getElementById(initialTab)) {
         activateTab(initialTab);
@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let initialSubtab = null;
     try {
         initialSubtab = sessionStorage.getItem('active_subtab');
-    } catch (e) {}
+    } catch (e) { }
     if (initialSubtab && document.getElementById(initialSubtab)) {
         activateSubtab(initialSubtab);
     } else {
@@ -483,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateNextCheckTimers, 1000);
 
     // --- Toast Notifications ---
-    window.showToast = function(message, type = 'info') {
+    window.showToast = function (message, type = 'info') {
         let container = document.querySelector('.toast-container');
         if (!container) {
             container = document.createElement('div');
@@ -512,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Modals ---
-    window.openModal = function(modalId) {
+    window.openModal = function (modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.add('open');
@@ -520,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.closeModal = function(modalId) {
+    window.closeModal = function (modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.remove('open');
@@ -820,11 +820,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    window.editMonitor = function(data) {
+    window.editMonitor = function (data) {
         if (!data || !monitorForm) return;
         monitorForm.reset();
         if (curlPasteInput) curlPasteInput.value = '';
-        
+
         const setVal = (id, val) => {
             const el = document.getElementById(id);
             if (el) el.value = val ?? '';
@@ -1068,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.addQuickSelectorItem = function(targetType, path) {
+    window.addQuickSelectorItem = function (targetType, path) {
         path = (path || '').trim();
         if (!path) return;
         const inputId = (targetType === 'ignore') ? 'monitorIgnoreSelector' : 'monitorSelector';
@@ -1086,7 +1086,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.removeQuickSelectorItem = function(targetType, path) {
+    window.removeQuickSelectorItem = function (targetType, path) {
         const inputId = (targetType === 'ignore') ? 'monitorIgnoreSelector' : 'monitorSelector';
         const inputEl = document.getElementById(inputId);
         if (!inputEl) return;
@@ -1289,7 +1289,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const idAttr = el.id ? `#${el.id}` : '';
             const classAttr = el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '';
             const suggestedSelector = idAttr || (classAttr ? `${tag}${classAttr}` : tag);
-            
+
             // Brief text content preview
             let textPreview = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
             if (textPreview.length > 40) textPreview = textPreview.substring(0, 40) + '...';
@@ -1357,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnPreviewLaunchQuickPicker')?.addEventListener('click', openVisualQuickSelector);
 
     // --- Action: Run Single Monitor ---
-    window.runCheck = async function(id, btn) {
+    window.runCheck = async function (id, btn) {
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '⏳';
@@ -1421,7 +1421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Action: Toggle Status (Enable/Disable Monitor) ---
-    window.toggleStatus = async function(id, btn) {
+    window.toggleStatus = async function (id, btn) {
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '⏳';
@@ -1447,7 +1447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Action: Delete Monitor ---
-    window.deleteMonitor = async function(id, name) {
+    window.deleteMonitor = async function (id, name) {
         if (!confirm(`Are you sure you want to delete monitor "${name}"?`)) {
             return;
         }
@@ -1532,7 +1532,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (line.endsWith('{')) indent++;
                 });
                 return formatted.trim();
-            } catch (e) {}
+            } catch (e) { }
         }
 
         // 3. HTML / XML Beautification
@@ -1546,7 +1546,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let cleanXml = trimmed.replace(reg, '$1\r\n$2$3');
                 const lines = cleanXml.split('\r\n');
 
-                const selfClosing = ['area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr','!doctype'];
+                const selfClosing = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr', '!doctype'];
 
                 lines.forEach(l => {
                     let line = l.trim();
@@ -1570,7 +1570,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 return formatted.trim();
-            } catch (e) {}
+            } catch (e) { }
         }
 
         return text;
@@ -1745,7 +1745,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    window.viewHistory = async function(id) {
+    window.viewHistory = async function (id) {
         currentHistoryMonitorId = id;
         currentRawLoadedFile = '';
         currentRawTextContent = '';
@@ -1794,7 +1794,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderRawContentWithLineNumbers(historySnapshot, currentRawTextContent);
                     currentRawLoadedFile = '';
                 }
-                
+
                 if (historyLogMeta) {
                     const lastChkStr = data.monitor?.last_check_at ? new Date(data.monitor.last_check_at).toLocaleString() : 'Never';
                     historyLogMeta.textContent = `Total Checks: ${data.monitor?.check_count || 0} | Changes: ${data.monitor?.change_count || 0} | Last Checked: ${lastChkStr} | Group: ${data.monitor?.group || 'Ungrouped'}`;
@@ -1953,7 +1953,7 @@ document.addEventListener('DOMContentLoaded', () => {
         changes.forEach(chg => {
             const timeStr = chg.timestamp ? new Date(chg.timestamp).toLocaleString() : '-';
             const badge = `<span style="background: #dcfce7; color: #15803d; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">+${chg.added_count || 0}</span> ` +
-                          `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">-${chg.removed_count || 0}</span>`;
+                `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600;">-${chg.removed_count || 0}</span>`;
             const sizeStr = `${chg.old_size || 0}B &rarr; ${chg.new_size || 0}B`;
             const archivedBadge = chg.archived ? '<span class="badge badge-paused" style="margin-left: 4px;">Archived</span>' : '';
 
@@ -2207,7 +2207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             data.logs.forEach(row => {
                 const levelBadge = row.level === 'ERROR' ? '<span class="badge badge-error">ERROR</span>'
                     : (row.level === 'WARNING' ? '<span class="badge badge-changed">WARN</span>'
-                    : '<span class="badge badge-active">INFO</span>');
+                        : '<span class="badge badge-active">INFO</span>');
 
                 let contextStr = '';
                 if (row.context && Object.keys(row.context).length > 0) {
@@ -2245,7 +2245,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.deleteSingleLog = async function(id) {
+    window.deleteSingleLog = async function (id) {
         if (!id) return;
         try {
             const res = await fetch('api.php?action=delete_logs', {
@@ -2325,7 +2325,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    window.openLogsForDate = function(dateStr) {
+    window.openLogsForDate = function (dateStr) {
         if (logDateInput) {
             logDateInput.value = dateStr;
         }
@@ -2377,12 +2377,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Click on stat card Changes Detected -> open explorer (handled via event listener near line 269)
     // Click on stat card Errors Encountered -> switch to Logs Tab (handled via event listener near line 272)
 
-    window.openChangesExplorer = function(targetMonitorId = null) {
+    window.openChangesExplorer = function (targetMonitorId = null) {
         openModal('changesExplorerModal');
         loadAllChanges(targetMonitorId);
     };
 
-    window.openChangesForDate = function(dateStr) {
+    window.openChangesForDate = function (dateStr) {
         if (changesDateInput) {
             changesDateInput.value = dateStr;
         }
@@ -2440,7 +2440,7 @@ document.addEventListener('DOMContentLoaded', () => {
             allLoadedChanges.forEach(chg => {
                 const timeStr = chg.timestamp ? new Date(chg.timestamp).toLocaleString() : '-';
                 const badge = `<span style="background: #dcfce7; color: #15803d; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;">+${chg.added_count || 0}</span> ` +
-                              `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;">-${chg.removed_count || 0}</span>`;
+                    `<span style="background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600;">-${chg.removed_count || 0}</span>`;
                 const sizeStr = `${chg.old_size || 0}B &rarr; ${chg.new_size || 0}B`;
                 const isArchived = !empty(chg.archived);
                 const archivedBadge = isArchived ? '<span class="badge badge-paused" style="margin-left: 6px;">Archived</span>' : '';
@@ -2495,7 +2495,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    window.toggleArchiveChange = async function(eventId, archive) {
+    window.toggleArchiveChange = async function (eventId, archive) {
         try {
             const res = await fetch('api.php?action=archive_changes', {
                 method: 'POST',
@@ -2515,7 +2515,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.deleteSingleChange = async function(eventId) {
+    window.deleteSingleChange = async function (eventId) {
         if (!confirm('Are you sure you want to permanently delete this change record?')) return;
         try {
             const res = await fetch('api.php?action=delete_changes', {
@@ -2612,7 +2612,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // --- INDIVIDUAL CHANGE DETAIL MODAL CONTROLLER ---
     // ==========================================
-    window.openChangeDetail = async function(eventId, monitorId) {
+    window.openChangeDetail = async function (eventId, monitorId) {
         openModal('changeDetailModal');
         const titleEl = document.getElementById('changeDetailTitle');
         const metaEl = document.getElementById('changeDetailMeta');
@@ -2939,12 +2939,99 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ids.length === 0) return;
             if (bulkEditTargetCount) bulkEditTargetCount.textContent = ids.length;
             if (bulkEditForm) bulkEditForm.reset();
+
+            // Make sure all field containers and checkboxes are active
             bulkEditCheckboxes.forEach(item => {
                 const cb = document.getElementById(item.check);
                 if (cb) cb.checked = true;
                 const container = document.getElementById(item.field);
                 if (container) container.style.display = 'block';
             });
+
+            // Pre-populate settings from selected monitors
+            const monitorsData = (window.allMonitorsList || {});
+            const selectedMonitors = ids.map(id => monitorsData[id]).filter(Boolean);
+
+            if (selectedMonitors.length > 0) {
+                // Helper to check if all selected items share identical value
+                const getCommonVal = (getter, defaultVal = '') => {
+                    const first = getter(selectedMonitors[0]);
+                    const allSame = selectedMonitors.every(m => getter(m) === first);
+                    return allSame ? first : defaultVal;
+                };
+
+                // Group
+                const commonGroup = getCommonVal(m => m.group || 'General', '');
+                const groupInput = document.getElementById('bulkEditGroupVal');
+                if (groupInput) groupInput.value = commonGroup;
+
+                // Selector & Ignore
+                const commonSelector = getCommonVal(m => m.selector || '', '');
+                const commonIgnore = getCommonVal(m => m.ignore_selector || '', '');
+                const selectorInput = document.getElementById('bulkEditSelectorVal');
+                const ignoreInput = document.getElementById('bulkEditIgnoreSelectorVal');
+                if (selectorInput) selectorInput.value = commonSelector;
+                if (ignoreInput) ignoreInput.value = commonIgnore;
+
+                // Interval
+                const commonInterval = getCommonVal(m => parseInt(m.interval_mins || 15, 10), 15);
+                const intervalInput = document.getElementById('bulkEditIntervalVal');
+                if (intervalInput) intervalInput.value = commonInterval;
+
+                // Browser Profile
+                const commonTemplate = getCommonVal(m => m.browser_template || 'chrome_mac', 'chrome_mac');
+                const templateSelect = document.getElementById('bulkEditTemplateVal');
+                if (templateSelect) templateSelect.value = commonTemplate;
+
+                // Extraction Mode / Type
+                const commonType = getCommonVal(m => m.type || 'html_full', 'html_full');
+                const typeSelect = document.getElementById('bulkEditTypeVal');
+                if (typeSelect) typeSelect.value = commonType;
+
+                // Timeout
+                const commonTimeout = getCommonVal(m => parseInt(m.timeout || 25, 10), 25);
+                const timeoutInput = document.getElementById('bulkEditTimeoutVal');
+                if (timeoutInput) timeoutInput.value = commonTimeout;
+
+                // Peak Schedule
+                const commonPeakEnabled = getCommonVal(m => !!m.peak_schedule_enabled, false);
+                const peakCb = document.getElementById('bulkEditPeakEnabledVal');
+                const peakBox = document.getElementById('bulkEditPeakConfigBox');
+                if (peakCb) peakCb.checked = commonPeakEnabled;
+                if (peakBox) peakBox.style.display = commonPeakEnabled ? 'block' : 'none';
+
+                const commonPeakStart = getCommonVal(m => parseInt(m.peak_start_hour ?? 9, 10), 9);
+                const commonPeakEnd = getCommonVal(m => parseInt(m.peak_end_hour ?? 18, 10), 18);
+                const commonPeakInt = getCommonVal(m => parseInt(m.peak_interval_mins ?? 5, 10), 5);
+                const commonOffpeakInt = getCommonVal(m => parseInt(m.offpeak_interval_mins ?? 60, 10), 60);
+
+                const peakStartSel = document.getElementById('bulkEditPeakStartVal');
+                const peakEndSel = document.getElementById('bulkEditPeakEndVal');
+                const peakIntInput = document.getElementById('bulkEditPeakIntervalVal');
+                const offpeakIntInput = document.getElementById('bulkEditOffpeakIntervalVal');
+
+                if (peakStartSel) peakStartSel.value = commonPeakStart;
+                if (peakEndSel) peakEndSel.value = commonPeakEnd;
+                if (peakIntInput) peakIntInput.value = commonPeakInt;
+                if (offpeakIntInput) offpeakIntInput.value = commonOffpeakInt;
+
+                // Notifications & Options
+                const commonStrip = getCommonVal(m => m.strip_tags !== false, true);
+                const commonNotifyChange = getCommonVal(m => m.notify_on_change !== false, true);
+                const commonNotifyError = getCommonVal(m => m.notify_on_error !== false, true);
+                const commonNotifyWa = getCommonVal(m => !!m.notify_whatsapp, false);
+
+                const stripCb = document.getElementById('bulkEditStripTagsVal');
+                const changeCb = document.getElementById('bulkEditNotifyChangeVal');
+                const errorCb = document.getElementById('bulkEditNotifyErrorVal');
+                const waCb = document.getElementById('bulkEditNotifyWhatsappVal');
+
+                if (stripCb) stripCb.checked = commonStrip;
+                if (changeCb) changeCb.checked = commonNotifyChange;
+                if (errorCb) errorCb.checked = commonNotifyError;
+                if (waCb) waCb.checked = commonNotifyWa;
+            }
+
             openModal('bulkEditModal');
         });
     }
@@ -3031,7 +3118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- TRASH & RESTORE CONTROLLER ---
     // ==========================================
 
-    window.restoreMonitor = async function(id, name) {
+    window.restoreMonitor = async function (id, name) {
         if (!confirm(`Restore "${name || id}" back to active monitoring?`)) return;
 
         try {
@@ -3052,7 +3139,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.purgeDeletedMonitor = async function(id, name) {
+    window.purgeDeletedMonitor = async function (id, name) {
         if (!confirm(`Are you sure you want to permanently delete "${name || id}"? This action cannot be undone.`)) return;
 
         try {
