@@ -1940,7 +1940,7 @@ $trashCount = count($trash);
         </div>
     </div>
 
-    <script src="assets/js/app.js"></script>
+    <script src="assets/js/app.js?v=<?= CM_VERSION ?>"></script>
 </body>
 
 </html>
