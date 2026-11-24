@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-11-24]
+### Fixed
+- **Session Continuity & Remember Me Race Condition Resolution**:
+  - Fixed premature logouts when saving monitors, settings, or performing AJAX changes while background queue polling is active.
+  - Extended server-side session lifetime (`session.gc_maxlifetime`) to 30 days and aligned session cookie lifetimes to prevent shared host garbage collectors from dropping sessions prematurely.
+  - Implemented token rotation grace periods (120-second reuse window for recently rotated tokens) in `Auth::checkRememberToken()` so concurrent asynchronous requests do not invalidate each other.
+  - Added unified proxy/Cloudflare HTTPS detection helper `Auth::isHttps()` for consistent cookie security flags across sessions and remember cookies.
+  - Guarded frontend redirection in `app.js` against duplicate expiry triggers.
+
+### Changed
+- Bumped minor version to `1.9.0`.
+
 ## [2026-11-20]
 ### Added
 - **Live Active Execution & Queue Position Tracking**:

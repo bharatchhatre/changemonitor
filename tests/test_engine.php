@@ -376,6 +376,48 @@ $clearedStatus = Storage::getRuntimeStatus();
 assert($clearedStatus['running_id'] === null, "Failed to clear running monitor");
 echo "✅ Runtime Status & Queue Tracking Test Passed\n";
 
+// Test Auth check and Remember Me token rotation with grace period
+require_once __DIR__ . '/../includes/auth.php';
+$testAuth = Storage::getAuthInfo();
+$initialTokens = $testAuth['remember_tokens'] ?? [];
+
+$testRawToken = bin2hex(random_bytes(32));
+$testTokenHash = hash('sha256', $testRawToken);
+$testExpiry = time() + (86400 * 30);
+$testAuth['remember_tokens'][] = [
+    'token_hash' => $testTokenHash,
+    'created_at' => date('c', time() - 200), // > 120s ago to trigger rotation
+    'expires_at' => date('c', $testExpiry),
+    'user_agent' => 'TestRunner'
+];
+Storage::saveAuthInfo($testAuth);
+
+$_COOKIE['cm_remember'] = $testRawToken;
+unset($_SESSION['cm_authenticated']);
+
+$authResult = Auth::check();
+assert($authResult === true, "Auth::check() failed to validate remember token");
+assert(!empty($_SESSION['cm_authenticated']), "Auth::check() did not set cm_authenticated in session");
+
+// Verify that the old token was given a grace window rather than deleted immediately
+$postAuth = Storage::getAuthInfo();
+$foundOldToken = false;
+foreach ($postAuth['remember_tokens'] as $tok) {
+    if (hash_equals($tok['token_hash'], $testTokenHash)) {
+        $foundOldToken = true;
+        $exp = strtotime($tok['expires_at']);
+        assert($exp > time(), "Old token should have active grace period expiry");
+        break;
+    }
+}
+assert($foundOldToken === true, "Old token was removed immediately instead of having a grace window");
+
+// Clean up test token
+$postAuth['remember_tokens'] = $initialTokens;
+Storage::saveAuthInfo($postAuth);
+unset($_COOKIE['cm_remember']);
+echo "✅ Auth Remember Token Grace Period & Session Resilience Test Passed\n";
+
 // Clean up snapshot test directory
 $snapTestDir = CM_HISTORY_DIR . '/' . $testSnapMonId;
 if (is_dir($snapTestDir)) {

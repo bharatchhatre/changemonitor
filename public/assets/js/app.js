@@ -6,8 +6,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
     // If an API request encounters a 401 Unauthorized or CSRF expiration, prompt to re-authenticate or redirect
+    let isRedirectingToLogin = false;
     function handleSessionExpiry(errorMsg) {
+        if (isRedirectingToLogin) return;
         if (errorMsg && (errorMsg.includes('Invalid or expired CSRF') || errorMsg.includes('Session expired') || errorMsg.includes('Unauthorized'))) {
+            isRedirectingToLogin = true;
             showToast('Session expired. Redirecting to login...', 'error');
             setTimeout(() => {
                 window.location.href = 'index.php?route=login';

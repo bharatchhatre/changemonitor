@@ -10,23 +10,35 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/storage.php';
 
 class Auth {
+    public static function isHttps(): bool {
+        return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443)
+            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+            || (!empty($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"https"'));
+    }
+
     public static function startSession(): void {
         if (session_status() === PHP_SESSION_NONE) {
-            // Set secure session cookie parameters
-            // Support Cloudflare and reverse proxies forwarding HTTPS
-            $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-                || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
-                || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
-                || (!empty($_SERVER['HTTP_CF_VISITOR']) && str_contains($_SERVER['HTTP_CF_VISITOR'], '"https"'));
-            session_set_cookie_params([
-                'lifetime' => 86400 * 7, // 7 days
-                'path' => '/',
-                'domain' => '',
-                'secure' => $isSecure,
-                'httponly' => true,
-                'samesite' => 'Lax'
-            ]);
-            session_start();
+            // Ensure session files persist on server for at least 30 days
+            $sessionLifetime = 86400 * 30; // 30 days
+            @ini_set('session.gc_maxlifetime', (string)$sessionLifetime);
+
+            if (!headers_sent()) {
+                // Set secure session cookie parameters
+                // Support Cloudflare and reverse proxies forwarding HTTPS
+                $isSecure = self::isHttps();
+                session_set_cookie_params([
+                    'lifetime' => $sessionLifetime,
+                    'path' => '/',
+                    'domain' => '',
+                    'secure' => $isSecure,
+                    'httponly' => true,
+                    'samesite' => 'Lax'
+                ]);
+                @session_start();
+            } else {
+                @session_start();
+            }
         }
     }
 
@@ -54,6 +66,7 @@ class Auth {
         $now = time();
         $validTokens = [];
         $matched = false;
+        $matchedItem = null;
 
         foreach ($auth['remember_tokens'] as $item) {
             $expiry = isset($item['expires_at']) ? strtotime($item['expires_at']) : 0;
@@ -62,35 +75,50 @@ class Auth {
             }
             if (hash_equals($item['token_hash'] ?? '', $tokenHash)) {
                 $matched = true;
+                $matchedItem = $item;
+                $validTokens[] = $item; // keep item in list
             } else {
                 $validTokens[] = $item;
             }
         }
 
-        if ($matched) {
-            // Token is valid: issue a fresh token to prevent token replay/reuse
-            $newToken = bin2hex(random_bytes(32));
-            $newTokenHash = hash('sha256', $newToken);
+        if ($matched && $matchedItem !== null) {
+            // Check if rotation is needed: only rotate if created more than 120 seconds ago
+            $createdAt = isset($matchedItem['created_at']) ? strtotime($matchedItem['created_at']) : 0;
             $newExpiry = $now + (86400 * 30); // 30 days
 
-            $validTokens[] = [
-                'token_hash' => $newTokenHash,
-                'created_at' => date('c'),
-                'expires_at' => date('c', $newExpiry),
-                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
-            ];
+            if (($now - $createdAt) > 120) {
+                // Issue fresh token and keep old token valid for a 120s grace period to prevent parallel request race conditions
+                $newToken = bin2hex(random_bytes(32));
+                $newTokenHash = hash('sha256', $newToken);
 
-            $auth['remember_tokens'] = array_values($validTokens);
-            Storage::saveAuthInfo($auth);
+                $updatedTokens = [];
+                foreach ($validTokens as $vt) {
+                    if (hash_equals($vt['token_hash'] ?? '', $tokenHash)) {
+                        // Mark old token to expire shortly (120s grace period)
+                        $vt['expires_at'] = date('c', $now + 120);
+                    }
+                    $updatedTokens[] = $vt;
+                }
 
-            self::setRememberCookie($newToken, $newExpiry);
+                $updatedTokens[] = [
+                    'token_hash' => $newTokenHash,
+                    'created_at' => date('c'),
+                    'expires_at' => date('c', $newExpiry),
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown'
+                ];
+
+                $auth['remember_tokens'] = array_values($updatedTokens);
+                Storage::saveAuthInfo($auth);
+                self::setRememberCookie($newToken, $newExpiry);
+            }
 
             $_SESSION['cm_authenticated'] = true;
             $_SESSION['cm_login_time'] = time();
             return true;
         }
 
-        // Clean up expired tokens if modified
+        // Clean up expired tokens if list changed
         if (count($validTokens) !== count($auth['remember_tokens'])) {
             $auth['remember_tokens'] = array_values($validTokens);
             Storage::saveAuthInfo($auth);
@@ -101,7 +129,10 @@ class Auth {
     }
 
     private static function setRememberCookie(string $token, int $expires): void {
-        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+        if (headers_sent()) {
+            return;
+        }
+        $isSecure = self::isHttps();
         setcookie('cm_remember', $token, [
             'expires' => $expires,
             'path' => '/',
@@ -113,7 +144,10 @@ class Auth {
     }
 
     private static function clearRememberCookie(): void {
-        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+        if (headers_sent()) {
+            return;
+        }
+        $isSecure = self::isHttps();
         setcookie('cm_remember', '', [
             'expires' => time() - 3600,
             'path' => '/',
