@@ -171,9 +171,17 @@ try {
     } else {
         // Fallback for shared hosting without root/tesseract installed:
         // Use OCR.Space engine API with failover keys (supports OCR_SPACE_API_KEY from .env or fallback)
+        // Support custom apikey from request query/POST, or .env, or working pool
+        $reqKey = $_GET['apikey'] ?? $_POST['apikey'] ?? '';
         $customKey = function_exists('cm_env') ? cm_env('OCR_SPACE_API_KEY', '') : (getenv('OCR_SPACE_API_KEY') ?: '');
-        // Prioritize working keys: custom key -> helloworld
-        $apiKeys = array_values(array_filter([$customKey, 'helloworld']));
+        
+        $apiKeys = array_values(array_unique(array_filter([
+            $reqKey,
+            $customKey,
+            'K81682784588957',
+            'K86650462588957',
+            'helloworld'
+        ])));
         
         $parsedText = '';
         $lastError = '';
