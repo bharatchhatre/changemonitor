@@ -347,9 +347,15 @@ $autoResponseEnabled = RequestQueue::isAutoResponseEnabled();
                         </div>
 
                         <?php if ($r['status'] === 'pending'): ?>
-                            <div class="timer-bar">
-                                <div class="timer-fill" id="timer-<?= htmlspecialchars($r['id']) ?>" style="width: 100%;"></div>
-                            </div>
+                            <?php if ($autoResponseEnabled): ?>
+                                <div class="timer-bar">
+                                    <div class="timer-fill" id="timer-<?= htmlspecialchars($r['id']) ?>" style="width: 100%;"></div>
+                                </div>
+                            <?php else: ?>
+                                <div style="font-size: 0.75rem; color: #38bdf8; display: flex; align-items: center; gap: 0.35rem; margin-top: 0.25rem;">
+                                    <span>⏳ Waiting for manual response (No time limit)</span>
+                                </div>
+                            <?php endif; ?>
                             <div class="input-group">
                                 <input type="text" class="input-text" id="input-<?= htmlspecialchars($r['id']) ?>" placeholder="Type response text..." autofocus>
                                 <button class="btn-send" onclick="sendResponse('<?= htmlspecialchars($r['id']) ?>')">Send</button>
@@ -458,6 +464,9 @@ $autoResponseEnabled = RequestQueue::isAutoResponseEnabled();
             const activeElementId = document.activeElement ? document.activeElement.id : null;
             const activeValue = document.activeElement && document.activeElement.tagName === 'INPUT' ? document.activeElement.value : '';
 
+            // Sync toggle if changed remotely
+            const isAutoOn = toggle ? toggle.checked : true;
+
             let html = '';
             for (const r of items) {
                 const isPending = r.status === 'pending';
@@ -465,7 +474,12 @@ $autoResponseEnabled = RequestQueue::isAutoResponseEnabled();
                 
                 let actionHtml = '';
                 if (isPending) {
+                    const waitInfoHtml = isAutoOn
+                        ? `<div class="timer-bar"><div class="timer-fill" style="width: 100%;"></div></div>`
+                        : `<div style="font-size: 0.75rem; color: #38bdf8; display: flex; align-items: center; gap: 0.35rem; margin-top: 0.25rem;">⏳ Waiting for manual response (No time limit)</div>`;
+
                     actionHtml = `
+                        ${waitInfoHtml}
                         <div class="input-group">
                             <input type="text" class="input-text" id="input-${r.id}" placeholder="Type response text..." value="${activeElementId === 'input-' + r.id ? activeValue : ''}">
                             <button class="btn-send" onclick="sendResponse('${r.id}')">Send</button>

@@ -131,20 +131,40 @@ if (class_exists('RequestQueue')) {
     $queueRecord = RequestQueue::createRequest($imageContent, $rawFormat ? 'text' : 'json');
 }
 
-// 2. Poll for manual response during the configured window (e.g. 6 to 9 seconds)
+// 2. Poll for manual response
 $reqId = $queueRecord['id'] ?? null;
 $manualAnswer = null;
-$waitDurationSeconds = (float)random_int(50, 80) / 10.0; // 5.0 to 8.0 seconds
+$isAutoEnabled = class_exists('RequestQueue') ? RequestQueue::isAutoResponseEnabled() : true;
+
+// When Auto Response is ON: wait random 5.0 to 8.0s before falling back
+// When Auto Response is OFF: wait with no time limit until human types response
+$waitDurationSeconds = $isAutoEnabled ? ((float)random_int(50, 80) / 10.0) : 0; // 0 = unlimited wait
 $pollIntervalMicroseconds = 250000; // 0.25 seconds
 $startTime = microtime(true);
 
+if (!$isAutoEnabled) {
+    // Increase script execution timeout to prevent PHP from killing the connection
+    @set_time_limit(0);
+    @ini_set('max_execution_time', '0');
+}
+
 if ($reqId) {
-    while ((microtime(true) - $startTime) < $waitDurationSeconds) {
+    while (true) {
         usleep($pollIntervalMicroseconds);
         $curr = RequestQueue::getRequest($reqId);
         if ($curr && $curr['status'] === 'answered' && !empty($curr['response_text'])) {
             $manualAnswer = $curr['response_text'];
             break;
+        }
+
+        // If auto response is ON and duration exceeded, break to run automatic solver
+        if ($isAutoEnabled && (microtime(true) - $startTime) >= $waitDurationSeconds) {
+            break;
+        }
+
+        // Check if client disconnected while waiting
+        if (connection_aborted()) {
+            exit;
         }
     }
 }
@@ -166,28 +186,7 @@ if ($manualAnswer !== null) {
     exit;
 }
 
-// Check if Auto Response is disabled
-$isAutoEnabled = class_exists('RequestQueue') ? RequestQueue::isAutoResponseEnabled() : true;
-if (!$isAutoEnabled) {
-    if ($reqId && class_exists('RequestQueue')) {
-        RequestQueue::markFallback($reqId, '(Auto Response Disabled)');
-    }
-    if ($rawFormat) {
-        http_response_code(408);
-        header('Content-Type: text/plain; charset=utf-8');
-        echo "No response received (Auto Response is OFF)";
-        exit;
-    }
-    http_response_code(408);
-    echo json_encode([
-        'success' => false,
-        'error' => 'No manual response provided and Auto Response is disabled',
-        'connector' => 'whatsapp_connector'
-    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    exit;
-}
-
-// 3. Otherwise: fallback to automatic solver
+// 3. Otherwise (Auto Response is ON): fallback to automatic solver
 $tmpIn = tempnam(sys_get_temp_dir(), 'ocr_in_') . '.png';
 file_put_contents($tmpIn, $imageContent);
 $tmpOut = tempnam(sys_get_temp_dir(), 'ocr_out_');

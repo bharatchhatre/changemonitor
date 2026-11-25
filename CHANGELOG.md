@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-26]
 ### Added
+- **Indefinite Manual Wait Mode**:
+  - When Auto Response is OFF, incoming requests wait indefinitely with no timeout until the operator types and submits a response on `requests.php`.
 - **Auto Response ON/OFF Toggle Switch**:
   - Added a live toggle switch in [`requests.php`](file:///Users/bharat/Projects/changemonitor/public/requests.php) allowing operators to turn automatic fallback response on or off.
   - When Auto Response is OFF, requests without a manual answer within the window will not automatically trigger the fallback solver.
