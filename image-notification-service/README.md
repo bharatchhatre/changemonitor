@@ -4,6 +4,7 @@ A lightweight, zero-dependency (uses Python standard library + Tesseract) Image 
 
 ## Features
 - **Zero External Python Libraries**: Runs on standard Python 3 + `tesseract` binary.
+- **Randomized Response Delay**: Returns responses with a realistic random delay between 4.5 and 8.0 seconds.
 - **Multiple Input Formats**:
   1. Standard file upload via `multipart/form-data` (form field: `image` or `file`)
   2. Direct binary POST (`Content-Type: image/png`, `image/jpeg`, etc.)
@@ -22,7 +23,17 @@ Ensure `tesseract` is installed:
 
 ---
 
-## 1. Quick Start
+## Live Site Usage (`https://bharatchhatre.com/changedetector/sendwhatsapp.php`)
+
+Extract plain text from an image:
+```bash
+curl -s -X POST -F "image=@/path/to/image.png" "https://bharatchhatre.com/changedetector/sendwhatsapp.php?format=text"
+```
+
+Extract JSON result:
+```bash
+curl -s -X POST -F "image=@/path/to/image.png" "https://bharatchhatre.com/changedetector/sendwhatsapp.php"
+```
 
 ### Start the Python API Server
 ```bash

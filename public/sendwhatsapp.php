@@ -1,6 +1,6 @@
 <?php
 /**
- * Public OCR & Image Notification Service Endpoint
+ * Public Image Notification Service Endpoint
  * Website Change Monitor
  */
 

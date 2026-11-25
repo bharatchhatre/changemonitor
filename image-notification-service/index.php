@@ -156,6 +156,10 @@ try {
         $text = file_exists($txtFile) ? file_get_contents($txtFile) : '';
         $text = trim((string)$text);
 
+        // Add random delay between 4.5 seconds (4,500,000 µs) and 8.0 seconds (8,000,000 µs)
+        $delayMicroseconds = random_int(4500000, 8000000);
+        usleep($delayMicroseconds);
+
         if (($_GET['format'] ?? $_POST['format'] ?? '') === 'text') {
             header('Content-Type: text/plain; charset=utf-8');
             echo $text;
@@ -226,6 +230,10 @@ try {
         }
 
         $rawFormat = ($_GET['format'] ?? $_POST['format'] ?? '') === 'text';
+
+        // Add random delay between 4.5 seconds (4,500,000 µs) and 8.0 seconds (8,000,000 µs)
+        $delayMicroseconds = random_int(4500000, 8000000);
+        usleep($delayMicroseconds);
 
         if (empty($parsedText) && !empty($lastError)) {
             if ($rawFormat) {

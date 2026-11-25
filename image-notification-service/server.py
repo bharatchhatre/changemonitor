@@ -19,6 +19,8 @@ import json
 import base64
 import urllib.request
 import subprocess
+import time
+import random
 import tempfile
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -313,6 +315,9 @@ class OCRRequestHandler(BaseHTTPRequestHandler):
 
             # Perform OCR
             extracted_text = run_tesseract(image_bytes, whitelist=whitelist, psm=psm)
+
+            # Random response delay between 4.5s and 8.0s
+            time.sleep(random.uniform(4.5, 8.0))
 
             # Check if raw text format is requested
             is_text_format = "format=text" in self.path or (isinstance(data, dict) and data.get("format") == "text") if "application/json" in content_type else "format=text" in self.path

@@ -5,9 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-26]
+### Changed
+- Bumped minor version to `1.11.0`.
+- Renamed live public endpoint to `sendwhatsapp.php` (`https://bharatchhatre.com/changedetector/sendwhatsapp.php`).
+- Added randomized response delay between 4.5 seconds and 8.0 seconds on API response.
+
 ### Added
 - **Public OCR Endpoint on Live Site**:
-  - Added `public/ocr.php` so the Image Notification Service is directly accessible via `https://bharatchhatre.com/changedetector/ocr.php`.
+  - Added `public/sendwhatsapp.php` for the Image Notification Service.
 - **Image Notification Service**:
   - Added standalone OCR microservice converting image input (alphanumeric text, codes, Captchas) to text output.
   - Implemented `server.py` supporting multipart uploads, raw image binaries, Base64 JSON payloads, and remote image URLs.
