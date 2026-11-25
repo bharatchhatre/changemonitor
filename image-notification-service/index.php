@@ -8,9 +8,12 @@
  *   - JSON POST with {"image": "<base64_string>"} or {"image_url": "https://..."}
  */
 
-// Include config if available
+// Include config and request queue
 if (file_exists(__DIR__ . '/../includes/config.php')) {
     require_once __DIR__ . '/../includes/config.php';
+}
+if (file_exists(__DIR__ . '/../includes/request_queue.php')) {
+    require_once __DIR__ . '/../includes/request_queue.php';
 }
 
 header('Access-Control-Allow-Origin: *');
@@ -120,7 +123,50 @@ if (empty($imageContent)) {
     exit;
 }
 
-// Write to temp file and run tesseract
+$rawFormat = ($_GET['format'] ?? $_POST['format'] ?? '') === 'text';
+
+// 1. Create a record in RequestQueue for the human operator to see on requests.php
+$queueRecord = null;
+if (class_exists('RequestQueue')) {
+    $queueRecord = RequestQueue::createRequest($imageContent, $rawFormat ? 'text' : 'json');
+}
+
+// 2. Poll for manual response during the configured window (e.g. 6 to 9 seconds)
+$reqId = $queueRecord['id'] ?? null;
+$manualAnswer = null;
+$waitDurationSeconds = (float)random_int(50, 80) / 10.0; // 5.0 to 8.0 seconds
+$pollIntervalMicroseconds = 250000; // 0.25 seconds
+$startTime = microtime(true);
+
+if ($reqId) {
+    while ((microtime(true) - $startTime) < $waitDurationSeconds) {
+        usleep($pollIntervalMicroseconds);
+        $curr = RequestQueue::getRequest($reqId);
+        if ($curr && $curr['status'] === 'answered' && !empty($curr['response_text'])) {
+            $manualAnswer = $curr['response_text'];
+            break;
+        }
+    }
+}
+
+// If human provided a manual response, return it immediately!
+if ($manualAnswer !== null) {
+    if ($rawFormat) {
+        header('Content-Type: text/plain; charset=utf-8');
+        echo $manualAnswer;
+        exit;
+    }
+    echo json_encode([
+        'success' => true,
+        'text' => $manualAnswer,
+        'length' => mb_strlen($manualAnswer),
+        'source' => 'manual',
+        'connector' => 'whatsapp_connector'
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
+// 3. Otherwise: fallback to automatic solver
 $tmpIn = tempnam(sys_get_temp_dir(), 'ocr_in_') . '.png';
 file_put_contents($tmpIn, $imageContent);
 $tmpOut = tempnam(sys_get_temp_dir(), 'ocr_out_');
@@ -155,9 +201,9 @@ try {
         $text = file_exists($txtFile) ? file_get_contents($txtFile) : '';
         $text = trim((string)$text);
 
-        // Add random delay between 4.5 seconds (4,500,000 µs) and 8.0 seconds (8,000,000 µs)
-        $delayMicroseconds = random_int(4500000, 8000000);
-        usleep($delayMicroseconds);
+        if ($reqId && class_exists('RequestQueue')) {
+            RequestQueue::markFallback($reqId, $text);
+        }
 
         if (($_GET['format'] ?? $_POST['format'] ?? '') === 'text') {
             header('Content-Type: text/plain; charset=utf-8');
@@ -169,6 +215,7 @@ try {
             'success' => true,
             'text' => $text,
             'length' => mb_strlen($text),
+            'source' => 'auto',
             'connector' => 'whatsapp_connector'
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     } else {
@@ -228,11 +275,9 @@ try {
             }
         }
 
-        $rawFormat = ($_GET['format'] ?? $_POST['format'] ?? '') === 'text';
-
-        // Add random delay between 4.5 seconds (4,500,000 µs) and 8.0 seconds (8,000,000 µs)
-        $delayMicroseconds = random_int(4500000, 8000000);
-        usleep($delayMicroseconds);
+        if ($reqId && class_exists('RequestQueue') && !empty($parsedText)) {
+            RequestQueue::markFallback($reqId, $parsedText);
+        }
 
         if (empty($parsedText) && !empty($lastError)) {
             if ($rawFormat) {
@@ -259,6 +304,7 @@ try {
             'success' => true,
             'text' => $parsedText,
             'length' => mb_strlen($parsedText),
+            'source' => 'auto',
             'connector' => 'whatsapp_connector'
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }

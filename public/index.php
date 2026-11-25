@@ -168,6 +168,9 @@ $trashCount = count($trash);
                 </div>
             </div>
             <div class="nav-actions">
+                <a href="requests.php" target="_blank" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; color: #25d366; border-color: rgba(37,211,102,0.3);" title="Open WhatsApp Connector Requests Dashboard">
+                    💬 <span>Live Requests</span>
+                </a>
                 <button class="drawer-toggle-btn" id="mobileDrawerOpenBtn" aria-label="Open Navigation Drawer"
                     title="Open Menu">
                     ☰ <span style="font-size: 0.85rem; font-weight: 600;">Menu</span>

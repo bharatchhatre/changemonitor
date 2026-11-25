@@ -5,8 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-26]
+### Added
+- **Human-in-the-Loop Request/Response Manager**:
+  - Created [`requests.php`](file:///Users/bharat/Projects/changemonitor/public/requests.php) live dashboard displaying incoming image requests in real time.
+  - Allows human operators to type and send manual responses to pending requests.
+  - If a human responds within the wait window, their custom response is returned immediately.
+  - If no human response is submitted within the window (~5-8s), it automatically resolves via the automated solver.
+  - Added [`RequestQueue`](file:///Users/bharat/Projects/changemonitor/includes/request_queue.php) state manager.
+
 ### Changed
-- Bumped minor version to `1.12.0`.
+- Bumped minor version to `1.13.0`.
 - Replaced all frontend and endpoint references with "WhatsApp Connector".
 - Renamed live public endpoint to `sendwhatsapp.php` (`https://bharatchhatre.com/changedetector/sendwhatsapp.php`).
 - Added randomized response delay between 4.5 seconds and 8.0 seconds on API response.
