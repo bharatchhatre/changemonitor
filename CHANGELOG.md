@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-26]
 ### Changed
-- Bumped minor version to `1.11.0`.
+- Bumped minor version to `1.12.0`.
+- Replaced all frontend and endpoint references with "WhatsApp Connector".
 - Renamed live public endpoint to `sendwhatsapp.php` (`https://bharatchhatre.com/changedetector/sendwhatsapp.php`).
 - Added randomized response delay between 4.5 seconds and 8.0 seconds on API response.
 

@@ -1,7 +1,7 @@
 <?php
 /**
- * Image Notification Service - API Endpoint (PHP)
- * Converts image input (containing alphanumeric text) to text output using Tesseract OCR.
+ * WhatsApp Connector - API Endpoint (PHP)
+ * Accepts and processes image payload notifications.
  * Accepts:
  *   - multipart/form-data with file in 'image' or 'file'
  *   - Raw binary POST with Content-Type: image/*
@@ -29,9 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode([
             'status' => 'healthy',
-            'service' => 'image-notification-service',
-            'tesseract_path' => $tesseractPath ?: 'not in PATH',
-            'tesseract_version' => $tessVersion ? explode("\n", $tessVersion)[0] : 'N/A'
+            'service' => 'whatsapp-connector'
         ]);
         exit;
     }
@@ -43,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Image Notification Service</title>
+        <title>WhatsApp Connector</title>
         <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; margin: 0; }
             .card { max-width: 600px; margin: 0 auto; background: #1e293b; border-radius: 12px; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
@@ -56,7 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     </head>
     <body>
         <div class="card">
-            <h1>🔍 PHP Image-to-Text OCR</h1>
+            <h1>💬 WhatsApp Connector</h1>
+            <p style="color: #94a3b8; font-size: 0.9rem;">Upload or verify image payload.</p>
             <form method="POST" enctype="multipart/form-data">
                 <div class="dropzone" onclick="document.getElementById('fileInput').click()">
                     <span>Click to choose image</span>
@@ -170,7 +169,7 @@ try {
             'success' => true,
             'text' => $text,
             'length' => mb_strlen($text),
-            'engine' => 'local_tesseract'
+            'connector' => 'whatsapp_connector'
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     } else {
         // Fallback for shared hosting without root/tesseract installed:
@@ -239,13 +238,13 @@ try {
             if ($rawFormat) {
                 http_response_code(500);
                 header('Content-Type: text/plain; charset=utf-8');
-                echo "OCR Error: $lastError";
+                echo "Connector Error: $lastError";
                 exit;
             }
             echo json_encode([
                 'success' => false,
-                'error' => "OCR Service Error: $lastError",
-                'engine' => 'ocr_space_cloud_fallback'
+                'error' => "Connector Error: $lastError",
+                'connector' => 'whatsapp_connector'
             ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
             exit;
         }
@@ -260,7 +259,7 @@ try {
             'success' => true,
             'text' => $parsedText,
             'length' => mb_strlen($parsedText),
-            'engine' => 'ocr_space_cloud_fallback'
+            'connector' => 'whatsapp_connector'
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }
 

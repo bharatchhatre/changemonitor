@@ -1,6 +1,6 @@
 <?php
 /**
- * Public Image Notification Service Endpoint
+ * WhatsApp Connector - Web Endpoint
  * Website Change Monitor
  */
 
