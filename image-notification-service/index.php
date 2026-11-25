@@ -156,6 +156,12 @@ try {
         $text = file_exists($txtFile) ? file_get_contents($txtFile) : '';
         $text = trim((string)$text);
 
+        if (($_GET['format'] ?? $_POST['format'] ?? '') === 'text') {
+            header('Content-Type: text/plain; charset=utf-8');
+            echo $text;
+            exit;
+        }
+
         echo json_encode([
             'success' => true,
             'text' => $text,
@@ -211,12 +217,26 @@ try {
             }
         }
 
+        $rawFormat = ($_GET['format'] ?? $_POST['format'] ?? '') === 'text';
+
         if (empty($parsedText) && !empty($lastError)) {
+            if ($rawFormat) {
+                http_response_code(500);
+                header('Content-Type: text/plain; charset=utf-8');
+                echo "OCR Error: $lastError";
+                exit;
+            }
             echo json_encode([
                 'success' => false,
                 'error' => "OCR Service Error: $lastError",
                 'engine' => 'ocr_space_cloud_fallback'
             ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            exit;
+        }
+
+        if ($rawFormat) {
+            header('Content-Type: text/plain; charset=utf-8');
+            echo $parsedText;
             exit;
         }
 

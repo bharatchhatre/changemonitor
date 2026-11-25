@@ -314,6 +314,19 @@ class OCRRequestHandler(BaseHTTPRequestHandler):
             # Perform OCR
             extracted_text = run_tesseract(image_bytes, whitelist=whitelist, psm=psm)
 
+            # Check if raw text format is requested
+            is_text_format = "format=text" in self.path or (isinstance(data, dict) and data.get("format") == "text") if "application/json" in content_type else "format=text" in self.path
+
+            if is_text_format:
+                body = extracted_text.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+
             # Return success response
             self._send_json(200, {
                 "success": True,
