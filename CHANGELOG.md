@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-26]
+### Changed
+- Bumped minor version to `1.16.0`.
+- Adjusted automatic response fallback window to between 5.0 seconds and 30.0 seconds at random.
+
 ### Added
 - **Indefinite Manual Wait Mode**:
   - When Auto Response is OFF, incoming requests wait indefinitely with no timeout until the operator types and submits a response on `requests.php`.

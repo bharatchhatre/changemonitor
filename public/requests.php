@@ -296,7 +296,7 @@ $autoResponseEnabled = RequestQueue::isAutoResponseEnabled();
             <div>
                 <h1>💬 WhatsApp Connector &bull; Requests</h1>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.25rem 0 0 0;">
-                    Incoming image requests appear here live. Type and send your response; if untouched within the window, the automatic solver provides the answer.
+                    Incoming image requests appear here live. Type and send your response; if untouched within the window (5s–30s), the automatic solver provides the answer.
                 </p>
             </div>
             <div style="display: flex; align-items: center; gap: 0.75rem;">

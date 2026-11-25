@@ -136,9 +136,9 @@ $reqId = $queueRecord['id'] ?? null;
 $manualAnswer = null;
 $isAutoEnabled = class_exists('RequestQueue') ? RequestQueue::isAutoResponseEnabled() : true;
 
-// When Auto Response is ON: wait random 5.0 to 8.0s before falling back
+// When Auto Response is ON: wait random 5.0 to 30.0s before falling back
 // When Auto Response is OFF: wait with no time limit until human types response
-$waitDurationSeconds = $isAutoEnabled ? ((float)random_int(50, 80) / 10.0) : 0; // 0 = unlimited wait
+$waitDurationSeconds = $isAutoEnabled ? ((float)random_int(50, 300) / 10.0) : 0; // 5.0 to 30.0 seconds, 0 = unlimited wait
 $pollIntervalMicroseconds = 250000; // 0.25 seconds
 $startTime = microtime(true);
 
