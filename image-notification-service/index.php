@@ -166,7 +166,8 @@ try {
         // Fallback for shared hosting without root/tesseract installed:
         // Use OCR.Space engine API with failover keys (supports OCR_SPACE_API_KEY from .env or fallback)
         $customKey = function_exists('cm_env') ? cm_env('OCR_SPACE_API_KEY', '') : (getenv('OCR_SPACE_API_KEY') ?: '');
-        $apiKeys = array_values(array_filter([$customKey, 'helloworld', 'K87899142388957']));
+        // Prioritize working keys: custom key -> helloworld
+        $apiKeys = array_values(array_filter([$customKey, 'helloworld']));
         
         $parsedText = '';
         $lastError = '';
@@ -199,13 +200,14 @@ try {
             }
 
             $resJson = json_decode((string)$response, true);
-            if (!empty($resJson['ParsedResults'][0]['ParsedText'])) {
+            // Check if this key gave an error (e.g. rate limit / monthly conversion limit)
+            $isError = !empty($resJson['IsErroredOnProcessing']) || !empty($resJson['ErrorMessage']) || !empty($resJson['error']);
+            if (!$isError && !empty($resJson['ParsedResults'][0]['ParsedText'])) {
                 $parsedText = trim($resJson['ParsedResults'][0]['ParsedText']);
                 break;
-            } elseif (!empty($resJson['ErrorMessage'])) {
-                $lastError = is_array($resJson['ErrorMessage']) ? implode(', ', $resJson['ErrorMessage']) : $resJson['ErrorMessage'];
-            } elseif (!empty($resJson['error'])) {
-                $lastError = $resJson['error'];
+            } else {
+                $lastError = $resJson['error'] ?? (is_array($resJson['ErrorMessage'] ?? null) ? implode(', ', $resJson['ErrorMessage']) : ($resJson['ErrorMessage'] ?? 'Failed parsing'));
+                // Continue to next key in pool
             }
         }
 
