@@ -159,36 +159,58 @@ try {
         ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     } else {
         // Fallback for shared hosting without root/tesseract installed:
-        // Use free public OCR.Space engine API
-        $apiKey = 'K87899142388957'; // Standard free tier public key
-        $postData = [
-            'apikey' => $apiKey,
-            'language' => 'eng',
-            'isOverlayRequired' => 'false',
-            'base64Image' => 'data:image/png;base64,' . base64_encode($imageContent),
-            'OCREngine' => '2'
-        ];
+        // Use OCR.Space engine API with failover keys (supports OCR_SPACE_API_KEY from .env or fallback)
+        $customKey = cm_env('OCR_SPACE_API_KEY', '');
+        $apiKeys = array_values(array_filter([$customKey, 'helloworld', 'K87899142388957']));
+        
+        $parsedText = '';
+        $lastError = '';
 
-        $ch = curl_init('https://api.ocr.space/parse/image');
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $postData,
-            CURLOPT_TIMEOUT => 20,
-            CURLOPT_SSL_VERIFYPEER => false
-        ]);
-        $response = curl_exec($ch);
-        $curlErr = curl_error($ch);
-        curl_close($ch);
+        foreach ($apiKeys as $key) {
+            $postData = [
+                'apikey' => $key,
+                'language' => 'eng',
+                'isOverlayRequired' => 'false',
+                'scale' => 'true',
+                'base64Image' => 'data:image/png;base64,' . base64_encode($imageContent),
+                'OCREngine' => '1'
+            ];
 
-        if ($curlErr) {
-            throw new Exception("OCR Fallback Error: $curlErr");
+            $ch = curl_init('https://api.ocr.space/parse/image');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $postData,
+                CURLOPT_TIMEOUT => 20,
+                CURLOPT_SSL_VERIFYPEER => false
+            ]);
+            $response = curl_exec($ch);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlErr) {
+                $lastError = $curlErr;
+                continue;
+            }
+
+            $resJson = json_decode((string)$response, true);
+            if (!empty($resJson['ParsedResults'][0]['ParsedText'])) {
+                $parsedText = trim($resJson['ParsedResults'][0]['ParsedText']);
+                break;
+            } elseif (!empty($resJson['ErrorMessage'])) {
+                $lastError = is_array($resJson['ErrorMessage']) ? implode(', ', $resJson['ErrorMessage']) : $resJson['ErrorMessage'];
+            } elseif (!empty($resJson['error'])) {
+                $lastError = $resJson['error'];
+            }
         }
 
-        $resJson = json_decode((string)$response, true);
-        $parsedText = '';
-        if (!empty($resJson['ParsedResults'][0]['ParsedText'])) {
-            $parsedText = trim($resJson['ParsedResults'][0]['ParsedText']);
+        if (empty($parsedText) && !empty($lastError)) {
+            echo json_encode([
+                'success' => false,
+                'error' => "OCR Service Error: $lastError",
+                'engine' => 'ocr_space_cloud_fallback'
+            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            exit;
         }
 
         echo json_encode([
