@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2026-11-26]
+### Added
+- **Image Notification Service**:
+  - Added standalone OCR microservice converting image input (alphanumeric text, codes, Captchas) to text output.
+  - Implemented `server.py` supporting multipart uploads, raw image binaries, Base64 JSON payloads, and remote image URLs.
+  - Added interactive browser test UI with drag-and-drop preview and timing metrics.
+  - Added CLI script `ocr.py` for direct command-line or piped stdin execution.
+  - Added standalone PHP endpoint `index.php` for running under PHP web servers.
+
+### Changed
+- Bumped minor version to `1.10.0`.
+
 ## [2026-11-24]
 ### Fixed
 - **Session Continuity & Remember Me Race Condition Resolution**:
