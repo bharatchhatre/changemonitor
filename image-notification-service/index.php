@@ -166,6 +166,27 @@ if ($manualAnswer !== null) {
     exit;
 }
 
+// Check if Auto Response is disabled
+$isAutoEnabled = class_exists('RequestQueue') ? RequestQueue::isAutoResponseEnabled() : true;
+if (!$isAutoEnabled) {
+    if ($reqId && class_exists('RequestQueue')) {
+        RequestQueue::markFallback($reqId, '(Auto Response Disabled)');
+    }
+    if ($rawFormat) {
+        http_response_code(408);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "No response received (Auto Response is OFF)";
+        exit;
+    }
+    http_response_code(408);
+    echo json_encode([
+        'success' => false,
+        'error' => 'No manual response provided and Auto Response is disabled',
+        'connector' => 'whatsapp_connector'
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
 // 3. Otherwise: fallback to automatic solver
 $tmpIn = tempnam(sys_get_temp_dir(), 'ocr_in_') . '.png';
 file_put_contents($tmpIn, $imageContent);

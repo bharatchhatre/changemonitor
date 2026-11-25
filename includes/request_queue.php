@@ -135,6 +135,29 @@ class RequestQueue {
     }
 
     /**
+     * Get auto response setting (defaults to true)
+     */
+    public static function isAutoResponseEnabled(): bool {
+        $file = self::getStorageDir() . '/auto_response_setting.json';
+        if (!file_exists($file)) {
+            return true;
+        }
+        $data = json_decode((string)file_get_contents($file), true);
+        return isset($data['enabled']) ? (bool)$data['enabled'] : true;
+    }
+
+    /**
+     * Set auto response setting on/off
+     */
+    public static function setAutoResponseEnabled(bool $enabled): bool {
+        $file = self::getStorageDir() . '/auto_response_setting.json';
+        return (bool)file_put_contents($file, json_encode([
+            'enabled' => $enabled,
+            'updated_at' => date('Y-m-d H:i:s')
+        ], JSON_PRETTY_PRINT));
+    }
+
+    /**
      * Clean up old requests older than 24 hours
      */
     public static function cleanupOld(int $maxAgeSeconds = 86400): void {

@@ -46,10 +46,24 @@ if (isset($_GET['api'])) {
         exit;
     }
 
-    // 2. Poll pending / active requests
+    // 2. Poll pending / active requests and settings
     if ($_GET['api'] === 'list') {
         $items = RequestQueue::listRequests(50);
-        echo json_encode(['success' => true, 'requests' => $items]);
+        $autoEnabled = RequestQueue::isAutoResponseEnabled();
+        echo json_encode([
+            'success' => true,
+            'requests' => $items,
+            'auto_response_enabled' => $autoEnabled
+        ]);
+        exit;
+    }
+
+    // 3. Toggle auto response on/off
+    if ($_GET['api'] === 'toggle_auto' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+        $enabled = !empty($input['enabled']);
+        RequestQueue::setAutoResponseEnabled($enabled);
+        echo json_encode(['success' => true, 'auto_response_enabled' => $enabled]);
         exit;
     }
 
@@ -59,6 +73,7 @@ if (isset($_GET['api'])) {
 
 // Render Request/Response Dashboard View
 $requests = RequestQueue::listRequests(50);
+$autoResponseEnabled = RequestQueue::isAutoResponseEnabled();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -224,6 +239,55 @@ $requests = RequestQueue::listRequests(50);
             background: #eab308;
             transition: width 1s linear;
         }
+        /* Toggle Switch */
+        .switch-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: #101c30;
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            user-select: none;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+            min-height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .25s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .25s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: var(--accent);
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
     </style>
 </head>
 <body>
@@ -235,8 +299,20 @@ $requests = RequestQueue::listRequests(50);
                     Incoming image requests appear here live. Type and send your response; if untouched within the window, the automatic solver provides the answer.
                 </p>
             </div>
-            <div class="live-badge">
-                <span class="pulse"></span> Live Listening
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <label class="switch-wrap" title="When ON, system automatically provides an answer if no human responds. When OFF, unanswered requests fail.">
+                    <span style="font-weight: 600; color: #cbd5e1;">Auto Response:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoResponseToggle" <?= $autoResponseEnabled ? 'checked' : '' ?> onchange="toggleAutoResponse(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span id="autoResponseLabel" style="font-weight: 700; color: <?= $autoResponseEnabled ? '#25d366' : '#94a3b8' ?>;">
+                        <?= $autoResponseEnabled ? 'ON' : 'OFF' ?>
+                    </span>
+                </label>
+                <div class="live-badge">
+                    <span class="pulse"></span> Live Listening
+                </div>
             </div>
         </div>
 
@@ -320,6 +396,25 @@ $requests = RequestQueue::listRequests(50);
             }
         }
 
+        // Toggle Auto Response
+        async function toggleAutoResponse(enabled) {
+            const label = document.getElementById('autoResponseLabel');
+            if (label) {
+                label.textContent = enabled ? 'ON' : 'OFF';
+                label.style.color = enabled ? '#25d366' : '#94a3b8';
+            }
+
+            try {
+                await fetch('requests.php?api=toggle_auto', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: enabled })
+                });
+            } catch (err) {
+                console.error('Failed to toggle auto response:', err);
+            }
+        }
+
         // Poll list every 1.5 seconds to pick up new incoming requests
         async function refreshList() {
             try {
@@ -327,6 +422,18 @@ $requests = RequestQueue::listRequests(50);
                 const data = await res.json();
                 if (data.success && data.requests) {
                     renderRequests(data.requests);
+                    // Sync toggle if changed remotely
+                    const toggle = document.getElementById('autoResponseToggle');
+                    const label = document.getElementById('autoResponseLabel');
+                    if (toggle && data.auto_response_enabled !== undefined) {
+                        if (document.activeElement !== toggle) {
+                            toggle.checked = data.auto_response_enabled;
+                            if (label) {
+                                label.textContent = data.auto_response_enabled ? 'ON' : 'OFF';
+                                label.style.color = data.auto_response_enabled ? '#25d366' : '#94a3b8';
+                            }
+                        }
+                    }
                 }
             } catch (e) {}
         }

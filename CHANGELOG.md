@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-26]
 ### Added
+- **Auto Response ON/OFF Toggle Switch**:
+  - Added a live toggle switch in [`requests.php`](file:///Users/bharat/Projects/changemonitor/public/requests.php) allowing operators to turn automatic fallback response on or off.
+  - When Auto Response is OFF, requests without a manual answer within the window will not automatically trigger the fallback solver.
 - **Human-in-the-Loop Request/Response Manager**:
   - Created [`requests.php`](file:///Users/bharat/Projects/changemonitor/public/requests.php) live dashboard displaying incoming image requests in real time.
   - Allows human operators to type and send manual responses to pending requests.
