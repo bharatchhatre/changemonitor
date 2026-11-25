@@ -19,8 +19,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (($_GET['action'] ?? '') === 'health') {
+        $tesseractPath = trim((string)shell_exec('which tesseract 2>/dev/null'));
+        $tessVersion = $tesseractPath ? shell_exec(escapeshellcmd($tesseractPath) . ' --version 2>&1') : 'not found';
         header('Content-Type: application/json; charset=utf-8');
-        echo json_encode(['status' => 'healthy', 'service' => 'image-notification-service', 'engine' => 'tesseract']);
+        echo json_encode([
+            'status' => 'healthy',
+            'service' => 'image-notification-service',
+            'tesseract_path' => $tesseractPath ?: 'not in PATH',
+            'tesseract_version' => $tessVersion ? explode("\n", $tessVersion)[0] : 'N/A'
+        ]);
         exit;
     }
 
