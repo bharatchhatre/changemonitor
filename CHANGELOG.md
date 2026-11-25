@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [2026-11-26]
 ### Added
+- **Public OCR Endpoint on Live Site**:
+  - Added `public/ocr.php` so the Image Notification Service is directly accessible via `https://bharatchhatre.com/changedetector/ocr.php`.
 - **Image Notification Service**:
   - Added standalone OCR microservice converting image input (alphanumeric text, codes, Captchas) to text output.
   - Implemented `server.py` supporting multipart uploads, raw image binaries, Base64 JSON payloads, and remote image URLs.
