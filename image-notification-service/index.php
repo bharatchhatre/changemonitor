@@ -122,26 +122,82 @@ file_put_contents($tmpIn, $imageContent);
 $tmpOut = tempnam(sys_get_temp_dir(), 'ocr_out_');
 
 try {
-    $tesseract = trim((string)shell_exec('which tesseract 2>/dev/null')) ?: '/opt/homebrew/bin/tesseract';
-    $cmd = escapeshellcmd($tesseract) . ' ' . escapeshellarg($tmpIn) . ' ' . escapeshellarg($tmpOut) . ' --psm ' . escapeshellarg((string)$psm);
-    
-    if (!empty($whitelist)) {
-        $cmd .= ' -c tessedit_char_whitelist=' . escapeshellarg($whitelist);
+    $tesseract = null;
+    $possiblePaths = [
+        trim((string)shell_exec('which tesseract 2>/dev/null')),
+        '/usr/bin/tesseract',
+        '/usr/local/bin/tesseract',
+        '/opt/homebrew/bin/tesseract',
+        '/opt/local/bin/tesseract',
+    ];
+
+    foreach ($possiblePaths as $p) {
+        if (!empty($p) && @is_executable($p)) {
+            $tesseract = $p;
+            break;
+        }
     }
-    $cmd .= ' 2>&1';
 
-    $execOutput = shell_exec($cmd);
-    $txtFile = $tmpOut . '.txt';
+    if ($tesseract) {
+        $cmd = escapeshellcmd($tesseract) . ' ' . escapeshellarg($tmpIn) . ' ' . escapeshellarg($tmpOut) . ' --psm ' . escapeshellarg((string)$psm);
+        if (!empty($whitelist)) {
+            $cmd .= ' -c tessedit_char_whitelist=' . escapeshellarg($whitelist);
+        }
+        $cmd .= ' 2>&1';
 
-    $text = file_exists($txtFile) ? file_get_contents($txtFile) : '';
-    $text = trim((string)$text);
+        $execOutput = shell_exec($cmd);
+        $txtFile = $tmpOut . '.txt';
 
-    echo json_encode([
-        'success' => true,
-        'text' => $text,
-        'length' => mb_strlen($text),
-        'engine' => 'tesseract'
-    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        $text = file_exists($txtFile) ? file_get_contents($txtFile) : '';
+        $text = trim((string)$text);
+
+        echo json_encode([
+            'success' => true,
+            'text' => $text,
+            'length' => mb_strlen($text),
+            'engine' => 'local_tesseract'
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    } else {
+        // Fallback for shared hosting without root/tesseract installed:
+        // Use free public OCR.Space engine API
+        $apiKey = 'K87899142388957'; // Standard free tier public key
+        $postData = [
+            'apikey' => $apiKey,
+            'language' => 'eng',
+            'isOverlayRequired' => 'false',
+            'base64Image' => 'data:image/png;base64,' . base64_encode($imageContent),
+            'OCREngine' => '2'
+        ];
+
+        $ch = curl_init('https://api.ocr.space/parse/image');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $postData,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        $response = curl_exec($ch);
+        $curlErr = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlErr) {
+            throw new Exception("OCR Fallback Error: $curlErr");
+        }
+
+        $resJson = json_decode((string)$response, true);
+        $parsedText = '';
+        if (!empty($resJson['ParsedResults'][0]['ParsedText'])) {
+            $parsedText = trim($resJson['ParsedResults'][0]['ParsedText']);
+        }
+
+        echo json_encode([
+            'success' => true,
+            'text' => $parsedText,
+            'length' => mb_strlen($parsedText),
+            'engine' => 'ocr_space_cloud_fallback'
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    }
 
 } catch (Throwable $e) {
     http_response_code(500);
