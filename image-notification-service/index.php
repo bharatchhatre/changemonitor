@@ -8,6 +8,11 @@
  *   - JSON POST with {"image": "<base64_string>"} or {"image_url": "https://..."}
  */
 
+// Include config if available
+if (file_exists(__DIR__ . '/../includes/config.php')) {
+    require_once __DIR__ . '/../includes/config.php';
+}
+
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -160,7 +165,7 @@ try {
     } else {
         // Fallback for shared hosting without root/tesseract installed:
         // Use OCR.Space engine API with failover keys (supports OCR_SPACE_API_KEY from .env or fallback)
-        $customKey = cm_env('OCR_SPACE_API_KEY', '');
+        $customKey = function_exists('cm_env') ? cm_env('OCR_SPACE_API_KEY', '') : (getenv('OCR_SPACE_API_KEY') ?: '');
         $apiKeys = array_values(array_filter([$customKey, 'helloworld', 'K87899142388957']));
         
         $parsedText = '';
